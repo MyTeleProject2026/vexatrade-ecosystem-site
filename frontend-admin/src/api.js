@@ -1,10 +1,11 @@
 import axios from 'axios';
 
-// 🔁 Replace this with your actual backend URL
-const API_BASE_URL = 'https://vexatrade-ecosystem-api.onrender.com';
+// Use environment variable if set, otherwise fallback to production URL
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://vexatrade-ecosystem-api.onrender.com';
 
 const api = axios.create({
-  baseURL: `${API_BASE_URL}/api`
+  baseURL: `${API_BASE_URL}/api`,
+  timeout: 10000,
 });
 
 api.interceptors.request.use((config) => {
@@ -12,6 +13,18 @@ api.interceptors.request.use((config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error('API error:', error);
+    if (error.response?.status === 401) {
+      localStorage.removeItem('adminToken');
+      window.location.href = '/';
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Admin auth
 export const adminLogin = (email, password) => api.post('/admin/login', { email, password });
