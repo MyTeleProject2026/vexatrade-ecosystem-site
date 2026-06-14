@@ -18,7 +18,7 @@ export const getPosts = () => api.get('/posts');
 export const getPost = (id) => api.get(`/posts/${id}`);
 export const viewEbook = (id) => {
   window.open(`${API_BASE_URL}/api/ebooks/view/${id}`, '_blank');
-
+};
 export const getEbooks = () => api.get('/ebooks');
 export const getEbook = (id) => api.get(`/ebooks/${id}`);
 export const downloadEbook = (id) => { window.open(`${API_BASE_URL}/api/ebooks/download/${id}`, '_blank'); };
