@@ -35,4 +35,16 @@ export const getEbook = (id) => api.get(`/ebooks/${id}`);
 export const createEbook = (formData) => api.post('/ebooks', formData);
 export const deleteEbook = (id) => api.delete(`/ebooks/${id}`);
 
+// Add to your existing api.js
+export const createPost = (data) => {
+  return api.post('/posts', data, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+};
+
+export const updatePost = (id, data) => {
+  return api.put(`/posts/${id}`, data, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+};
 export default api;
