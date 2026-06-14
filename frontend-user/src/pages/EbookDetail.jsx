@@ -1,217 +1,206 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { getEbook, downloadEbook } from '../api';
+import { Link } from 'react-router-dom';
+import { getEbooks } from '../api';
+import { Search, X, Filter } from 'lucide-react';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://vexatrade-ecosystem-api.onrender.com';
-
-export default function EbookDetail() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const [ebook, setEbook] = useState(null);
+export default function EbooksPage() {
+  const [ebooks, setEbooks] = useState([]);
+  const [filteredEbooks, setFilteredEbooks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('all'); // 'all', 'html', 'pdf'
+  
   useEffect(() => {
-    getEbook(id)
+    getEbooks()
       .then(res => {
-        if (res.data.success) {
-          setEbook(res.data.data);
-        } else {
-          setError('Ebook not found');
-        }
+        const data = res.data.data || [];
+        setEbooks(data);
+        setFilteredEbooks(data);
       })
-      .catch(err => {
-        console.error(err);
-        setError('Failed to load ebook');
-      })
+      .catch(console.error)
       .finally(() => setLoading(false));
-  }, [id]);
-
-  const handleReadOnline = () => {
-    const token = localStorage.getItem('userToken');
-    if (!token) {
-      alert('Please login first');
-      return;
+  }, []);
+  
+  useEffect(() => {
+    let results = ebooks;
+    
+    // Filter by type
+    if (filterType !== 'all') {
+      results = results.filter(ebook =>
+        ebook.file_type === filterType ||
+        (filterType === 'html' && ebook.file_url?.endsWith('.html')) ||
+        (filterType === 'pdf' && ebook.file_url?.endsWith('.pdf'))
+      );
     }
-    window.open(`${API_BASE_URL}/api/ebooks/view/${id}?token=${encodeURIComponent(token)}`, '_blank');
+    
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      results = results.filter(ebook =>
+        ebook.title.toLowerCase().includes(query) ||
+        (ebook.description && ebook.description.toLowerCase().includes(query))
+      );
+    }
+    
+    setFilteredEbooks(results);
+  }, [searchQuery, filterType, ebooks]);
+  
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
   };
-
+  
+  const clearSearch = () => {
+    setSearchQuery('');
+  };
+  
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center px-4">
+      <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block w-10 h-10 border-4 border-[#00d4ff] border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-[#b0bedb] text-sm sm:text-base">Loading ebook...</p>
+          <p className="text-[#b0bedb]">Loading ebooks...</p>
         </div>
       </div>
     );
   }
-
-  if (error || !ebook) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center px-4">
-        <div className="text-center">
-          <div className="text-5xl sm:text-6xl mb-4">📚</div>
-          <h2 className="text-lg sm:text-xl font-semibold text-white mb-2">Ebook Not Found</h2>
-          <p className="text-[#b0bedb] text-sm sm:text-base">The ebook you're looking for doesn't exist or has been removed.</p>
-          <button
-            onClick={() => navigate('/')}
-            className="mt-4 inline-flex items-center gap-2 text-[#00d4ff] hover:underline text-sm sm:text-base"
-          >
-            ← Back to Home
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const isHtmlEbook = ebook.file_type === 'html' || ebook.file_url?.endsWith('.html');
-
+  
   return (
     <div className="min-h-screen bg-[#0b0f1c]">
-      {/* Back Button - Mobile Floating */}
-      <button
-        onClick={() => navigate(-1)}
-        className="fixed top-20 left-4 z-40 md:hidden w-10 h-10 rounded-full bg-[#0f1422] border border-[#2a3440] flex items-center justify-center text-white shadow-lg text-lg"
-      >
-        ←
-      </button>
-
-      {/* Back Button - Desktop */}
-      <div className="hidden md:block max-w-7xl mx-auto px-6 lg:px-8 pt-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 text-sm text-[#b0bedb] hover:text-[#00d4ff] transition"
-        >
-          ← Back
-        </button>
+      {/* Header */}
+      <div className="bg-gradient-to-r from-[#0a0e1a] to-[#0f172a] border-b border-[#00d4ff]/20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Ebooks & Guides Library</h1>
+          <p className="text-[#b0bedb] text-sm sm:text-base">Free educational resources about blockchain, trading, and the VexaTrade Ecosystem</p>
+        </div>
       </div>
 
-      {/* Hero Section */}
-      <div className="relative bg-gradient-to-br from-[#0a0e1a] via-[#0f172a] to-[#07111e] border-b border-[#00d4ff]/20">
-        <div className="absolute top-0 right-0 w-48 sm:w-64 h-48 sm:h-64 bg-[#00d4ff]/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-48 sm:w-64 h-48 sm:h-64 bg-[#00d4ff]/5 rounded-full blur-3xl"></div>
-        
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
-          <div className="flex flex-col lg:flex-row gap-6 sm:gap-8 lg:gap-12 items-center lg:items-start">
-            {/* Cover Image */}
-            <div className="w-40 sm:w-52 lg:w-64 flex-shrink-0">
-              {ebook.cover_image_url ? (
-                <div className="rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border border-[#00d4ff]/20 bg-[#0f1422]">
-                  <img 
-                    src={ebook.cover_image_url} 
-                    alt={ebook.title} 
-                    className="w-full aspect-[3/4] object-cover"
-                    onError={(e) => { 
-                      e.target.style.display = 'none'; 
-                      e.target.parentElement.innerHTML = '<div class="aspect-[3/4] flex items-center justify-center bg-gradient-to-br from-[#0f1422] to-[#0a0e1a]"><span class="text-4xl sm:text-5xl">📘</span></div>';
-                    }}
-                  />
-                </div>
-              ) : (
-                <div className="rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border border-[#00d4ff]/20 bg-gradient-to-br from-[#0f1422] to-[#0a0e1a] aspect-[3/4] flex items-center justify-center">
-                  <span className="text-5xl sm:text-6xl">📘</span>
-                </div>
+      {/* Search and Filter Bar */}
+      <div className="sticky top-16 z-40 bg-[#0b0f1c]/95 backdrop-blur-sm border-b border-[#1e2a3a] py-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#6c86a3]" size={18} />
+              <input
+                type="text"
+                placeholder="Search ebooks by title or description..."
+                value={searchQuery}
+                onChange={handleSearch}
+                className="w-full bg-[#0f1422] border border-[#2a3440] rounded-xl pl-10 pr-10 py-2.5 text-white placeholder-[#6c86a3] focus:outline-none focus:border-[#00d4ff] transition"
+              />
+              {searchQuery && (
+                <button onClick={clearSearch} className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <X size={16} className="text-[#6c86a3] hover:text-white" />
+                </button>
               )}
             </div>
             
-            {/* Ebook Info */}
-            <div className="flex-1 text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/20 text-xs text-[#00d4ff] mb-3 sm:mb-4">
-                <span>{isHtmlEbook ? '📘 HTML Ebook' : '📕 PDF Document'}</span>
-              </div>
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-3 sm:mb-4 leading-tight">
-                {ebook.title}
-              </h1>
-              <p className="text-[#b0bedb] text-sm sm:text-base leading-relaxed mb-4 sm:mb-6">
-                {ebook.description || 'No description available.'}
-              </p>
-              
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start">
-                {isHtmlEbook ? (
-                  <button
-                    onClick={handleReadOnline}
-                    className="inline-flex items-center justify-center gap-2 bg-[#00d4ff] text-black font-semibold px-5 sm:px-6 py-2.5 sm:py-3 rounded-full hover:bg-[#00b8e6] transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-[#00d4ff]/25 text-sm sm:text-base"
-                  >
-                    <span>📖</span>
-                    <span>Read Online</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => downloadEbook(ebook.id)}
-                    className="inline-flex items-center justify-center gap-2 bg-[#00d4ff] text-black font-semibold px-5 sm:px-6 py-2.5 sm:py-3 rounded-full hover:bg-[#00b8e6] transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-[#00d4ff]/25 text-sm sm:text-base"
-                  >
-                    <span>📥</span>
-                    <span>Download PDF</span>
-                  </button>
-                )}
-              </div>
-              
-              {/* Info Box */}
-              {isHtmlEbook && (
-                <div className="mt-5 sm:mt-6 p-3 sm:p-4 bg-[#0f1422]/50 rounded-xl border border-[#2a3440]">
-                  <div className="flex items-start gap-2 sm:gap-3">
-                    <span className="text-[#00d4ff] text-base sm:text-lg">💡</span>
-                    <div className="text-left">
-                      <p className="text-xs sm:text-sm text-[#b0bedb]">
-                        This is an interactive HTML ebook. Click <strong>"Read Online"</strong> to view it in your browser with full formatting, images, and styles.
-                      </p>
-                      <p className="text-[10px] sm:text-xs text-[#6c86a3] mt-1 sm:mt-2">
-                        You can also right-click and save the page to read offline.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
+            {/* Filter Buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setFilterType('all')}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                  filterType === 'all' 
+                    ? 'bg-[#00d4ff] text-black' 
+                    : 'bg-[#0f1422] text-[#b0bedb] border border-[#2a3440] hover:border-[#00d4ff]'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilterType('html')}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                  filterType === 'html' 
+                    ? 'bg-[#00d4ff] text-black' 
+                    : 'bg-[#0f1422] text-[#b0bedb] border border-[#2a3440] hover:border-[#00d4ff]'
+                }`}
+              >
+                📘 HTML
+              </button>
+              <button
+                onClick={() => setFilterType('pdf')}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                  filterType === 'pdf' 
+                    ? 'bg-[#00d4ff] text-black' 
+                    : 'bg-[#0f1422] text-[#b0bedb] border border-[#2a3440] hover:border-[#00d4ff]'
+                }`}
+              >
+                📕 PDF
+              </button>
             </div>
           </div>
         </div>
       </div>
-      
-      {/* Additional Content Section */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        <div className="border-t border-[#2a3440] pt-6 sm:pt-8">
-          <h2 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4 flex items-center gap-2">
-            <span>📋</span> About This Ebook
-          </h2>
-          <p className="text-[#b0bedb] text-sm sm:text-base leading-relaxed">
-            This comprehensive guide provides detailed information about the VexaTrade Blockchain Ecosystem, 
-            including trading strategies, investment opportunities, and platform features. 
-            Perfect for both beginners and experienced traders.
-          </p>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-5 sm:mt-6">
-            <div className="flex items-center gap-3 p-3 bg-[#0f1422] rounded-xl">
-              <span className="text-lg sm:text-xl">🔒</span>
-              <div>
-                <p className="text-white text-xs sm:text-sm font-medium">Secure & Trusted</p>
-                <p className="text-[10px] sm:text-xs text-[#6c86a3]">Blockchain verified content</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-3 bg-[#0f1422] rounded-xl">
-              <span className="text-lg sm:text-xl">🔄</span>
-              <div>
-                <p className="text-white text-xs sm:text-sm font-medium">Always Updated</p>
-                <p className="text-[10px] sm:text-xs text-[#6c86a3]">Latest platform information</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-3 bg-[#0f1422] rounded-xl">
-              <span className="text-lg sm:text-xl">📱</span>
-              <div>
-                <p className="text-white text-xs sm:text-sm font-medium">Mobile Friendly</p>
-                <p className="text-[10px] sm:text-xs text-[#6c86a3]">Read on any device</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-3 bg-[#0f1422] rounded-xl">
-              <span className="text-lg sm:text-xl">💎</span>
-              <div>
-                <p className="text-white text-xs sm:text-sm font-medium">Free Access</p>
-                <p className="text-[10px] sm:text-xs text-[#6c86a3]">Included with your account</p>
-              </div>
-            </div>
+
+      {/* Results Stats */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <p className="text-sm text-[#6c86a3]">
+          Showing {filteredEbooks.length} of {ebooks.length} ebooks
+          {searchQuery && ` matching "${searchQuery}"`}
+          {filterType !== 'all' && ` • Filtered by: ${filterType.toUpperCase()}`}
+        </p>
+      </div>
+
+      {/* Ebooks Grid */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-16">
+        {filteredEbooks.length === 0 ? (
+          <div className="text-center py-16 bg-[#0f1422] rounded-2xl">
+            <div className="text-6xl mb-4">🔍</div>
+            <h3 className="text-lg font-semibold text-white mb-2">No ebooks found</h3>
+            <p className="text-[#b0bedb] text-sm">
+              {searchQuery ? `No ebooks matching "${searchQuery}"` : 'No ebooks available yet'}
+            </p>
+            {(searchQuery || filterType !== 'all') && (
+              <button 
+                onClick={() => { setSearchQuery(''); setFilterType('all'); }} 
+                className="mt-4 text-[#00d4ff] hover:underline text-sm"
+              >
+                Clear all filters
+              </button>
+            )}
           </div>
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
+            {filteredEbooks.map(ebook => (
+              <Link key={ebook.id} to={`/ebook/${ebook.id}`} className="group bg-[#0f1422] rounded-xl overflow-hidden border border-[#1e2a3a] hover:border-[#00d4ff] transition-all duration-300 hover:transform hover:-translate-y-1">
+                {/* Cover Image */}
+                {ebook.cover_image_url ? (
+                  <div className="overflow-hidden h-48">
+                    <img src={ebook.cover_image_url} alt={ebook.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  </div>
+                ) : (
+                  <div className="h-48 bg-gradient-to-br from-[#0f1422] to-[#0a0e1a] flex items-center justify-center">
+                    <span className="text-5xl">📘</span>
+                  </div>
+                )}
+                
+                <div className="p-4">
+                  {/* Type Badge */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-[#00d4ff]/10 text-[#00d4ff]">
+                      {ebook.file_type === 'html' || ebook.file_url?.endsWith('.html') ? '📘 HTML Ebook' : '📕 PDF Document'}
+                    </span>
+                  </div>
+                  
+                  {/* Title */}
+                  <h3 className="font-semibold text-white mb-2 line-clamp-2 text-base">
+                    {ebook.title}
+                  </h3>
+                  
+                  {/* Description */}
+                  <p className="text-sm text-[#b0bedb] line-clamp-2 mb-3">
+                    {ebook.description || 'No description available'}
+                  </p>
+                  
+                  {/* Action */}
+                  <div className="inline-flex items-center gap-1 text-sm text-[#00d4ff] group-hover:gap-2 transition-all">
+                    View details <span>→</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
