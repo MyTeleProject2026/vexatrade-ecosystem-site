@@ -1,15 +1,15 @@
 import axios from 'axios';
 
+// 🔁 Replace this with your actual backend URL
+const API_BASE_URL = 'https://vexatrade-ecosystem-api.onrender.com';
+
 const api = axios.create({
-  baseURL: '/api'
+  baseURL: `${API_BASE_URL}/api`
 });
 
-// Attach token if exists
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('userToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
@@ -18,8 +18,6 @@ export const getPosts = () => api.get('/posts');
 export const getPost = (id) => api.get(`/posts/${id}`);
 export const getEbooks = () => api.get('/ebooks');
 export const getEbook = (id) => api.get(`/ebooks/${id}`);
-export const downloadEbook = (id) => {
-  window.open(`/api/ebooks/download/${id}`, '_blank');
-};
+export const downloadEbook = (id) => { window.open(`${API_BASE_URL}/api/ebooks/download/${id}`, '_blank'); };
 
 export default api;
