@@ -10,13 +10,10 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
-    if (token) setIsAuthenticated(true);
+    if (localStorage.getItem('adminToken')) setIsAuthenticated(true);
   }, []);
 
-  if (!isAuthenticated) {
-    return <Login onLogin={() => setIsAuthenticated(true)} />;
-  }
+  if (!isAuthenticated) return <Login onLogin={() => setIsAuthenticated(true)} />;
 
   return (
     <BrowserRouter>
