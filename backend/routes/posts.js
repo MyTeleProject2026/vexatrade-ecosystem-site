@@ -18,11 +18,13 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // Get all posts (public after user login)
-router.get('/', verifyUserToken, (req, res) => {
-  db.all('SELECT id, title, description, image_url, created_at FROM posts ORDER BY created_at DESC', (err, rows) => {
-    if (err) return res.status(500).json({ success: false, message: err.message });
+router.get('/', verifyUserToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT id, title, description, image_url, created_at FROM posts ORDER BY created_at DESC');
     res.json({ success: true, data: rows });
-  });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 // Get single post by id
