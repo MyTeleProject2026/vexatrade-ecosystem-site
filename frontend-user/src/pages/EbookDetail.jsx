@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getEbook, downloadEbook } from '../api';
-import { ArrowLeft, Download, BookOpen } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://vexatrade-ecosystem-api.onrender.com';
 
@@ -11,7 +10,7 @@ export default function EbookDetail() {
   const [ebook, setEbook] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   useEffect(() => {
     getEbook(id)
       .then(res => {
@@ -27,7 +26,7 @@ export default function EbookDetail() {
       })
       .finally(() => setLoading(false));
   }, [id]);
-  
+
   const handleReadOnline = () => {
     const token = localStorage.getItem('userToken');
     if (!token) {
@@ -36,7 +35,7 @@ export default function EbookDetail() {
     }
     window.open(`${API_BASE_URL}/api/ebooks/view/${id}?token=${encodeURIComponent(token)}`, '_blank');
   };
-  
+
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
@@ -47,7 +46,7 @@ export default function EbookDetail() {
       </div>
     );
   }
-  
+
   if (error || !ebook) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
@@ -65,17 +64,17 @@ export default function EbookDetail() {
       </div>
     );
   }
-  
+
   const isHtmlEbook = ebook.file_type === 'html' || ebook.file_url?.endsWith('.html');
-  
+
   return (
     <div className="min-h-screen bg-[#0b0f1c]">
       {/* Back Button - Mobile Floating */}
       <button
         onClick={() => navigate(-1)}
-        className="fixed top-20 left-4 z-40 md:hidden w-10 h-10 rounded-full bg-[#0f1422] border border-[#2a3440] flex items-center justify-center text-white shadow-lg"
+        className="fixed top-20 left-4 z-40 md:hidden w-10 h-10 rounded-full bg-[#0f1422] border border-[#2a3440] flex items-center justify-center text-white shadow-lg text-lg"
       >
-        <ArrowLeft size={18} />
+        ←
       </button>
 
       {/* Back Button - Desktop */}
@@ -84,7 +83,7 @@ export default function EbookDetail() {
           onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 text-sm text-[#b0bedb] hover:text-[#00d4ff] transition"
         >
-          <ArrowLeft size={16} /> Back
+          ← Back
         </button>
       </div>
 
@@ -135,7 +134,7 @@ export default function EbookDetail() {
                     onClick={handleReadOnline}
                     className="inline-flex items-center justify-center gap-2 bg-[#00d4ff] text-black font-semibold px-5 sm:px-6 py-2.5 sm:py-3 rounded-full hover:bg-[#00b8e6] transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-[#00d4ff]/25 text-sm sm:text-base"
                   >
-                    <BookOpen size={18} />
+                    <span>📖</span>
                     <span>Read Online</span>
                   </button>
                 ) : (
@@ -143,7 +142,7 @@ export default function EbookDetail() {
                     onClick={() => downloadEbook(ebook.id)}
                     className="inline-flex items-center justify-center gap-2 bg-[#00d4ff] text-black font-semibold px-5 sm:px-6 py-2.5 sm:py-3 rounded-full hover:bg-[#00b8e6] transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-[#00d4ff]/25 text-sm sm:text-base"
                   >
-                    <Download size={18} />
+                    <span>📥</span>
                     <span>Download PDF</span>
                   </button>
                 )}

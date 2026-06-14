@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getPost } from '../api';
-import { ArrowLeft } from 'lucide-react';
 
 export default function PostDetail() {
   const { id } = useParams();
@@ -52,7 +51,7 @@ export default function PostDetail() {
         onClick={() => navigate(-1)}
         className="inline-flex items-center gap-2 text-sm text-[#b0bedb] hover:text-[#00d4ff] transition mb-6"
       >
-        <ArrowLeft size={16} /> Back
+        ← Back
       </button>
 
       {/* Featured Image */}

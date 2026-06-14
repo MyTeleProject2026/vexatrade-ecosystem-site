@@ -1,6 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Menu, X } from 'lucide-react';
 
 export default function Navbar({ user, onLogout }) {
   const navigate = useNavigate();
@@ -59,7 +58,7 @@ export default function Navbar({ user, onLogout }) {
             className="md:hidden p-2 rounded-lg hover:bg-white/5 transition"
             aria-label="Toggle menu"
           >
-            {isMenuOpen ? <X size={22} className="text-white" /> : <Menu size={22} className="text-white" />}
+            <span className="text-white text-xl">{isMenuOpen ? '✕' : '☰'}</span>
           </button>
         </div>
 
