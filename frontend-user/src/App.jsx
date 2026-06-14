@@ -10,42 +10,37 @@ import EbookDetail from './pages/EbookDetail';
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-
+  
   useEffect(() => {
     const token = localStorage.getItem('userToken');
     const email = localStorage.getItem('userEmail');
-    if (token && email) {
-      setUser({ email });
-    }
+    if (token && email) setUser({ email });
     setLoading(false);
   }, []);
-
+  
   const handleLogin = async (email) => {
     const res = await userLogin(email);
     localStorage.setItem('userToken', res.data.token);
     localStorage.setItem('userEmail', email);
     setUser({ email });
   };
-
-  const handleLogout = () => {
-    setUser(null);
-  };
-
+  
   if (loading) return null;
-
-  if (!user) {
-    return <LoginModal onLogin={handleLogin} />;
-  }
-
+  if (!user) return <LoginModal onLogin={handleLogin} />;
+  
   return (
     <BrowserRouter>
-      <Navbar user={user} onLogout={handleLogout} />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/post/:id" element={<PostDetail />} />
-        <Route path="/ebook/:id" element={<EbookDetail />} />
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
+      <div className="min-h-screen bg-[#0b0f1c]">
+        <Navbar user={user} onLogout={() => setUser(null)} />
+        <main className="pt-4 pb-20 md:pb-8">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/post/:id" element={<PostDetail />} />
+            <Route path="/ebook/:id" element={<EbookDetail />} />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </main>
+      </div>
     </BrowserRouter>
   );
 }
