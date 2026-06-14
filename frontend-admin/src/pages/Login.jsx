@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { adminLogin } from '../api';
 
 export default function Login({ onLogin }) {
@@ -7,7 +6,6 @@ export default function Login({ onLogin }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,7 +15,6 @@ export default function Login({ onLogin }) {
       const res = await adminLogin(email, password);
       localStorage.setItem('adminToken', res.data.token);
       onLogin();
-      navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid credentials');
     } finally {

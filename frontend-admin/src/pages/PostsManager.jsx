@@ -13,7 +13,6 @@ export default function PostsManager() {
       setPosts(res.data.data || []);
     } catch (err) {
       setError('Failed to load posts');
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -24,7 +23,7 @@ export default function PostsManager() {
   }, []);
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this post permanently?')) return;
+    if (!window.confirm('Delete this post?')) return;
     try {
       await deletePost(id);
       loadPosts();

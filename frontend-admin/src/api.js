@@ -1,11 +1,10 @@
 import axios from 'axios';
 
-// Use environment variable if set, otherwise fallback to production URL
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://vexatrade-ecosystem-api.onrender.com';
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
-  timeout: 10000,
+  timeout: 30000,
 });
 
 api.interceptors.request.use((config) => {
@@ -17,7 +16,6 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('API error:', error);
     if (error.response?.status === 401) {
       localStorage.removeItem('adminToken');
       window.location.href = '/';
@@ -26,17 +24,12 @@ api.interceptors.response.use(
   }
 );
 
-// Admin auth
 export const adminLogin = (email, password) => api.post('/admin/login', { email, password });
-
-// Posts
 export const getPosts = () => api.get('/posts');
 export const getPost = (id) => api.get(`/posts/${id}`);
 export const createPost = (formData) => api.post('/posts', formData);
 export const updatePost = (id, formData) => api.put(`/posts/${id}`, formData);
 export const deletePost = (id) => api.delete(`/posts/${id}`);
-
-// Ebooks
 export const getEbooks = () => api.get('/ebooks');
 export const getEbook = (id) => api.get(`/ebooks/${id}`);
 export const createEbook = (formData) => api.post('/ebooks', formData);
