@@ -12,24 +12,24 @@ import EbookDetail from './pages/EbookDetail';
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-
+  
   useEffect(() => {
     const token = localStorage.getItem('userToken');
     const email = localStorage.getItem('userEmail');
     if (token && email) setUser({ email });
     setLoading(false);
   }, []);
-
+  
   const handleLogin = async (email) => {
     const res = await userLogin(email);
     localStorage.setItem('userToken', res.data.token);
     localStorage.setItem('userEmail', email);
     setUser({ email });
   };
-
+  
   if (loading) return null;
   if (!user) return <LoginModal onLogin={handleLogin} />;
-
+  
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-[#0b0f1c]">
