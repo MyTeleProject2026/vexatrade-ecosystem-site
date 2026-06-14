@@ -66,23 +66,16 @@ export default function PostsPage() {
       <div className="sticky top-16 z-40 bg-[#0b0f1c]/95 backdrop-blur-sm border-b border-[#1e2a3a] py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="relative max-w-md">
-            <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#6c86a3]" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
             <input
               type="text"
               placeholder="Search posts by title or description..."
               value={searchQuery}
               onChange={handleSearch}
-              className="w-full bg-[#0f1422] border border-[#2a3440] rounded-xl pl-10 pr-10 py-2.5 text-white placeholder-[#6c86a3] focus:outline-none focus:border-[#00d4ff] transition"
+              className="w-full bg-[#0f1422] border border-[#2a3440] rounded-xl pl-4 pr-10 py-2.5 text-white placeholder-[#6c86a3] focus:outline-none focus:border-[#00d4ff] transition"
             />
             {searchQuery && (
-              <button onClick={clearSearch} className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
+              <button onClick={clearSearch} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-[#6c86a3] hover:text-white">
+                ✕
               </button>
             )}
           </div>
@@ -115,24 +108,50 @@ export default function PostsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
             {filteredPosts.map(post => (
-              <Link key={post.id} to={`/post/${post.id}`} className="group bg-[#0f1422] rounded-xl overflow-hidden border border-[#1e2a3a] hover:border-[#00d4ff] transition-all duration-300 hover:transform hover:-translate-y-1">
-                {post.image_url && (
-                  <div className="overflow-hidden h-48">
-                    <img src={post.image_url} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  </div>
-                )}
-                <div className="p-5">
+              <div key={post.id} className="group bg-[#0f1422] rounded-xl overflow-hidden border border-[#1e2a3a] hover:border-[#00d4ff] transition-all duration-300 hover:transform hover:-translate-y-1 flex flex-col">
+                {/* Image Section - Clickable */}
+                <Link to={`/post/${post.id}`} className="block">
+                  {post.image_url && (
+                    <div className="overflow-hidden h-48">
+                      <img 
+                        src={post.image_url} 
+                        alt={post.title} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                  )}
+                </Link>
+                
+                {/* Content Section */}
+                <div className="p-5 flex flex-col flex-grow">
+                  {/* Date */}
                   <div className="flex items-center gap-2 text-xs text-[#6c86a3] mb-2">
                     <span>📅</span>
                     <span>{new Date(post.created_at).toLocaleDateString()}</span>
                   </div>
-                  <h3 className="text-lg font-semibold text-white mb-2 line-clamp-2">{post.title}</h3>
-                  <p className="text-sm text-[#b0bedb] line-clamp-3 mb-4">{post.description}</p>
-                  <div className="inline-flex items-center gap-1 text-sm text-[#00d4ff] group-hover:gap-2 transition-all">
-                    Read article <span>→</span>
-                  </div>
+                  
+                  {/* Title - Clickable */}
+                  <Link to={`/post/${post.id}`} className="block">
+                    <h3 className="text-lg font-semibold text-white mb-2 line-clamp-2 hover:text-[#00d4ff] transition">
+                      {post.title}
+                    </h3>
+                  </Link>
+                  
+                  {/* Description */}
+                  <p className="text-sm text-[#b0bedb] line-clamp-3 mb-4 flex-grow">
+                    {post.description}
+                  </p>
+                  
+                  {/* VISIBLE BUTTON - FIXED */}
+                  <Link 
+                    to={`/post/${post.id}`}
+                    className="inline-flex items-center justify-center gap-2 w-full bg-gradient-to-r from-[#00d4ff] to-[#00b8e6] text-black font-bold px-4 py-2.5 rounded-lg hover:from-[#00b8e6] hover:to-[#0099cc] transition-all duration-300 text-sm shadow-lg hover:shadow-[#00d4ff]/20"
+                  >
+                    📖 Read Article
+                    <span className="group-hover:translate-x-1 transition-transform">→</span>
+                  </Link>
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         )}

@@ -159,7 +159,7 @@ export default function EbooksPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
             {filteredEbooks.map(ebook => (
               <div key={ebook.id} className="group bg-[#0f1422] rounded-xl overflow-hidden border border-[#1e2a3a] hover:border-[#00d4ff] transition-all duration-300 hover:transform hover:-translate-y-1 flex flex-col">
-                {/* Cover Image */}
+                {/* Cover Image - Clickable */}
                 <Link to={`/ebook/${ebook.id}`} className="block">
                   {ebook.cover_image_url ? (
                     <div className="overflow-hidden h-48">
@@ -180,7 +180,7 @@ export default function EbooksPage() {
                     </span>
                   </div>
                   
-                  {/* Title */}
+                  {/* Title - Clickable */}
                   <Link to={`/ebook/${ebook.id}`} className="block">
                     <h3 className="font-semibold text-white mb-2 line-clamp-2 text-base hover:text-[#00d4ff] transition">
                       {ebook.title}
@@ -192,10 +192,10 @@ export default function EbooksPage() {
                     {ebook.description || 'No description available'}
                   </p>
                   
-                  {/* Button - IMPROVED DESIGN */}
+                  {/* VISIBLE BUTTON - FIXED */}
                   <Link 
                     to={`/ebook/${ebook.id}`}
-                    className="inline-flex items-center justify-center gap-2 w-full bg-[#00d4ff] text-black font-semibold px-4 py-2.5 rounded-lg hover:bg-[#00b8e6] transition-all duration-300 text-sm mt-2"
+                    className="inline-flex items-center justify-center gap-2 w-full bg-gradient-to-r from-[#00d4ff] to-[#00b8e6] text-black font-bold px-4 py-2.5 rounded-lg hover:from-[#00b8e6] hover:to-[#0099cc] transition-all duration-300 text-sm shadow-lg hover:shadow-[#00d4ff]/20"
                   >
                     📖 View Details
                     <span className="group-hover:translate-x-1 transition-transform">→</span>
@@ -208,4 +208,4 @@ export default function EbooksPage() {
       </div>
     </div>
   );
-} 
+}
