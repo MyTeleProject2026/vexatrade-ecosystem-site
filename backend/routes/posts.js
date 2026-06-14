@@ -24,7 +24,7 @@ router.get('/', verifyUserToken, async (req, res) => {
   }
 });
 
-// Get single post
+// Get single post (user + admin)
 router.get('/:id', verifyUserToken, async (req, res) => {
   const { id } = req.params;
   try {

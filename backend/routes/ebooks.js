@@ -77,7 +77,6 @@ router.delete('/:id', verifyAdminToken, async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT file_url FROM ebooks WHERE id = ?', [id]);
     if (rows.length === 0) return res.status(404).json({ success: false, message: 'Ebook not found' });
-    // Optional: delete file from disk, but skip for simplicity
     await pool.query('DELETE FROM ebooks WHERE id = ?', [id]);
     res.json({ success: true });
   } catch (err) {
