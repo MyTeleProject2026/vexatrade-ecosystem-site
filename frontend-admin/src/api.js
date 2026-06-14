@@ -12,12 +12,19 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Admin auth
 export const adminLogin = (email, password) => api.post('/admin/login', { email, password });
+
+// Posts
 export const getPosts = () => api.get('/posts');
+export const getPost = (id) => api.get(`/posts/${id}`);        // ✅ ADD THIS
 export const createPost = (formData) => api.post('/posts', formData);
 export const updatePost = (id, formData) => api.put(`/posts/${id}`, formData);
 export const deletePost = (id) => api.delete(`/posts/${id}`);
+
+// Ebooks
 export const getEbooks = () => api.get('/ebooks');
+export const getEbook = (id) => api.get(`/ebooks/${id}`);      // ✅ ADD THIS (optional, but good to have)
 export const createEbook = (formData) => api.post('/ebooks', formData);
 export const deleteEbook = (id) => api.delete(`/ebooks/${id}`);
 
