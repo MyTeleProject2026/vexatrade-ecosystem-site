@@ -9,13 +9,8 @@ export default function EbooksManager() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const loadEbooks = () => {
-    getEbooks().then(res => setEbooks(res.data.data || [])).catch(console.error);
-  };
-
-  useEffect(() => {
-    loadEbooks();
-  }, []);
+  const loadEbooks = () => { getEbooks().then(res => setEbooks(res.data.data || [])).catch(console.error); };
+  useEffect(() => { loadEbooks(); }, []);
 
   const handleUpload = async (e) => {
     e.preventDefault();
@@ -28,23 +23,14 @@ export default function EbooksManager() {
     formData.append('file', file);
     try {
       await createEbook(formData);
-      setTitle('');
-      setDescription('');
-      setCover(null);
-      setFile(null);
+      setTitle(''); setDescription(''); setCover(null); setFile(null);
       loadEbooks();
-    } catch (err) {
-      alert('Upload failed');
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { alert('Upload failed'); }
+    finally { setLoading(false); }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Delete this ebook?')) {
-      await deleteEbook(id);
-      loadEbooks();
-    }
+    if (window.confirm('Delete this ebook?')) { await deleteEbook(id); loadEbooks(); }
   };
 
   return (

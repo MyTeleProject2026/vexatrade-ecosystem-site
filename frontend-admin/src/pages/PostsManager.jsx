@@ -7,21 +7,13 @@ export default function PostsManager() {
   const [loading, setLoading] = useState(true);
 
   const loadPosts = () => {
-    getPosts().then(res => {
-      setPosts(res.data.data || []);
-      setLoading(false);
-    }).catch(console.error);
+    getPosts().then(res => { setPosts(res.data.data || []); setLoading(false); }).catch(console.error);
   };
 
-  useEffect(() => {
-    loadPosts();
-  }, []);
+  useEffect(() => { loadPosts(); }, []);
 
   const handleDelete = async (id) => {
-    if (window.confirm('Delete this post?')) {
-      await deletePost(id);
-      loadPosts();
-    }
+    if (window.confirm('Delete this post?')) { await deletePost(id); loadPosts(); }
   };
 
   if (loading) return <div className="p-6">Loading...</div>;

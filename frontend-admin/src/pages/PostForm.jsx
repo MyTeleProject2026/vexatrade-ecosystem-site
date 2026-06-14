@@ -35,20 +35,12 @@ export default function PostForm() {
     formData.append('content', content);
     if (image) formData.append('image', image);
     if (existingImage) formData.append('existing_image_url', existingImage);
-
     try {
-      if (id) {
-        await updatePost(id, formData);
-      } else {
-        await createPost(formData);
-      }
+      if (id) await updatePost(id, formData);
+      else await createPost(formData);
       navigate('/posts');
-    } catch (err) {
-      console.error(err);
-      alert('Failed to save post');
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { alert('Failed to save post'); }
+    finally { setLoading(false); }
   };
 
   return (
