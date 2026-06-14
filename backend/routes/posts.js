@@ -1,15 +1,12 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const db = require('../db');
+const pool = require('../db');
 const { verifyAdminToken, verifyUserToken } = require('../middleware/auth');
 const router = express.Router();
 
-// Configure multer for post images
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/posts/');
-  },
+  destination: (req, file, cb) => cb(null, 'uploads/posts/'),
   filename: (req, file, cb) => {
     const unique = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, unique + path.extname(file.originalname));
@@ -17,7 +14,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Get all posts (public after user login)
+// Get all posts (user)
 router.get('/', verifyUserToken, async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT id, title, description, image_url, created_at FROM posts ORDER BY created_at DESC');
@@ -27,58 +24,62 @@ router.get('/', verifyUserToken, async (req, res) => {
   }
 });
 
-// Get single post by id
-router.get('/:id', verifyUserToken, (req, res) => {
+// Get single post
+router.get('/:id', verifyUserToken, async (req, res) => {
   const { id } = req.params;
-  db.get('SELECT * FROM posts WHERE id = ?', [id], (err, row) => {
-    if (err) return res.status(500).json({ success: false, message: err.message });
-    if (!row) return res.status(404).json({ success: false, message: 'Post not found' });
-    res.json({ success: true, data: row });
-  });
+  try {
+    const [rows] = await pool.query('SELECT * FROM posts WHERE id = ?', [id]);
+    if (rows.length === 0) return res.status(404).json({ success: false, message: 'Post not found' });
+    res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
-// Admin: Create post
-router.post('/', verifyAdminToken, upload.single('image'), (req, res) => {
+// Create post (admin)
+router.post('/', verifyAdminToken, upload.single('image'), async (req, res) => {
   const { title, description, content } = req.body;
   const image_url = req.file ? `/uploads/posts/${req.file.filename}` : null;
   if (!title) return res.status(400).json({ success: false, message: 'Title required' });
-  db.run(
-    'INSERT INTO posts (title, description, content, image_url) VALUES (?, ?, ?, ?)',
-    [title, description || '', content || '', image_url],
-    function(err) {
-      if (err) return res.status(500).json({ success: false, message: err.message });
-      res.json({ success: true, id: this.lastID });
-    }
-  );
-});
-
-// Admin: Update post
-router.put('/:id', verifyAdminToken, upload.single('image'), (req, res) => {
-  const { id } = req.params;
-  const { title, description, content } = req.body;
-  let image_url = req.body.existing_image_url;
-  if (req.file) {
-    image_url = `/uploads/posts/${req.file.filename}`;
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO posts (title, description, content, image_url) VALUES (?, ?, ?, ?)',
+      [title, description || '', content || '', image_url]
+    );
+    res.json({ success: true, id: result.insertId });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
-  db.run(
-    'UPDATE posts SET title = ?, description = ?, content = ?, image_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-    [title, description || '', content || '', image_url, id],
-    function(err) {
-      if (err) return res.status(500).json({ success: false, message: err.message });
-      if (this.changes === 0) return res.status(404).json({ success: false, message: 'Post not found' });
-      res.json({ success: true });
-    }
-  );
 });
 
-// Admin: Delete post
-router.delete('/:id', verifyAdminToken, (req, res) => {
+// Update post (admin)
+router.put('/:id', verifyAdminToken, upload.single('image'), async (req, res) => {
   const { id } = req.params;
-  db.run('DELETE FROM posts WHERE id = ?', [id], function(err) {
-    if (err) return res.status(500).json({ success: false, message: err.message });
-    if (this.changes === 0) return res.status(404).json({ success: false, message: 'Post not found' });
+  const { title, description, content, existing_image_url } = req.body;
+  let image_url = existing_image_url;
+  if (req.file) image_url = `/uploads/posts/${req.file.filename}`;
+  try {
+    const [result] = await pool.query(
+      'UPDATE posts SET title = ?, description = ?, content = ?, image_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [title, description || '', content || '', image_url, id]
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Post not found' });
     res.json({ success: true });
-  });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Delete post (admin)
+router.delete('/:id', verifyAdminToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [result] = await pool.query('DELETE FROM posts WHERE id = ?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Post not found' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 module.exports = router;

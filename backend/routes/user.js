@@ -10,14 +10,15 @@ router.post('/login', async (req, res) => {
   }
   try {
     const [rows] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
+    let userId;
     if (rows.length === 0) {
       const [result] = await pool.query('INSERT INTO users (email) VALUES (?)', [email]);
-      const token = jwt.sign({ id: result.insertId, email, role: 'user' }, process.env.JWT_SECRET, { expiresIn: '30d' });
-      return res.json({ success: true, token, user: { id: result.insertId, email } });
+      userId = result.insertId;
     } else {
-      const token = jwt.sign({ id: rows[0].id, email, role: 'user' }, process.env.JWT_SECRET, { expiresIn: '30d' });
-      return res.json({ success: true, token, user: { id: rows[0].id, email } });
+      userId = rows[0].id;
     }
+    const token = jwt.sign({ id: userId, email, role: 'user' }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    res.json({ success: true, token, user: { id: userId, email } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: err.message });
