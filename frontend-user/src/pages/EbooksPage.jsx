@@ -8,7 +8,7 @@ export default function EbooksPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
-  
+
   useEffect(() => {
     getEbooks()
       .then(res => {
@@ -19,13 +19,13 @@ export default function EbooksPage() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
-  
+
   useEffect(() => {
     let results = ebooks;
     
     if (filterType !== 'all') {
-      results = results.filter(ebook =>
-        ebook.file_type === filterType ||
+      results = results.filter(ebook => 
+        ebook.file_type === filterType || 
         (filterType === 'html' && ebook.file_url?.endsWith('.html')) ||
         (filterType === 'pdf' && ebook.file_url?.endsWith('.pdf'))
       );
@@ -33,7 +33,7 @@ export default function EbooksPage() {
     
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      results = results.filter(ebook =>
+      results = results.filter(ebook => 
         ebook.title.toLowerCase().includes(query) ||
         (ebook.description && ebook.description.toLowerCase().includes(query))
       );
@@ -41,15 +41,15 @@ export default function EbooksPage() {
     
     setFilteredEbooks(results);
   }, [searchQuery, filterType, ebooks]);
-  
+
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
   };
-  
+
   const clearSearch = () => {
     setSearchQuery('');
   };
-  
+
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -60,7 +60,7 @@ export default function EbooksPage() {
       </div>
     );
   }
-  
+
   return (
     <div className="min-h-screen bg-[#0b0f1c]">
       {/* Header */}
@@ -77,23 +77,16 @@ export default function EbooksPage() {
           <div className="flex flex-col sm:flex-row gap-4">
             {/* Search Input */}
             <div className="relative flex-1">
-              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#6c86a3]" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
               <input
                 type="text"
                 placeholder="Search ebooks by title or description..."
                 value={searchQuery}
                 onChange={handleSearch}
-                className="w-full bg-[#0f1422] border border-[#2a3440] rounded-xl pl-10 pr-10 py-2.5 text-white placeholder-[#6c86a3] focus:outline-none focus:border-[#00d4ff] transition"
+                className="w-full bg-[#0f1422] border border-[#2a3440] rounded-xl pl-4 pr-10 py-2.5 text-white placeholder-[#6c86a3] focus:outline-none focus:border-[#00d4ff] transition"
               />
               {searchQuery && (
-                <button onClick={clearSearch} className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
+                <button onClick={clearSearch} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-[#6c86a3] hover:text-white">
+                  ✕
                 </button>
               )}
             </div>
@@ -165,41 +158,54 @@ export default function EbooksPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
             {filteredEbooks.map(ebook => (
-              <Link key={ebook.id} to={`/ebook/${ebook.id}`} className="group bg-[#0f1422] rounded-xl overflow-hidden border border-[#1e2a3a] hover:border-[#00d4ff] transition-all duration-300 hover:transform hover:-translate-y-1">
-                {ebook.cover_image_url ? (
-                  <div className="overflow-hidden h-48">
-                    <img src={ebook.cover_image_url} alt={ebook.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  </div>
-                ) : (
-                  <div className="h-48 bg-gradient-to-br from-[#0f1422] to-[#0a0e1a] flex items-center justify-center">
-                    <span className="text-5xl">📘</span>
-                  </div>
-                )}
+              <div key={ebook.id} className="group bg-[#0f1422] rounded-xl overflow-hidden border border-[#1e2a3a] hover:border-[#00d4ff] transition-all duration-300 hover:transform hover:-translate-y-1 flex flex-col">
+                {/* Cover Image */}
+                <Link to={`/ebook/${ebook.id}`} className="block">
+                  {ebook.cover_image_url ? (
+                    <div className="overflow-hidden h-48">
+                      <img src={ebook.cover_image_url} alt={ebook.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    </div>
+                  ) : (
+                    <div className="h-48 bg-gradient-to-br from-[#0f1422] to-[#0a0e1a] flex items-center justify-center">
+                      <span className="text-5xl">📘</span>
+                    </div>
+                  )}
+                </Link>
                 
-                <div className="p-4">
+                <div className="p-4 flex flex-col flex-grow">
+                  {/* Type Badge */}
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-xs px-2 py-0.5 rounded-full bg-[#00d4ff]/10 text-[#00d4ff]">
                       {ebook.file_type === 'html' || ebook.file_url?.endsWith('.html') ? '📘 HTML Ebook' : '📕 PDF Document'}
                     </span>
                   </div>
                   
-                  <h3 className="font-semibold text-white mb-2 line-clamp-2 text-base">
-                    {ebook.title}
-                  </h3>
+                  {/* Title */}
+                  <Link to={`/ebook/${ebook.id}`} className="block">
+                    <h3 className="font-semibold text-white mb-2 line-clamp-2 text-base hover:text-[#00d4ff] transition">
+                      {ebook.title}
+                    </h3>
+                  </Link>
                   
-                  <p className="text-sm text-[#b0bedb] line-clamp-2 mb-3">
+                  {/* Description */}
+                  <p className="text-sm text-[#b0bedb] line-clamp-2 mb-4 flex-grow">
                     {ebook.description || 'No description available'}
                   </p>
                   
-                  <div className="inline-flex items-center gap-1 text-sm text-[#00d4ff] group-hover:gap-2 transition-all">
-                    View details <span>→</span>
-                  </div>
+                  {/* Button - IMPROVED DESIGN */}
+                  <Link 
+                    to={`/ebook/${ebook.id}`}
+                    className="inline-flex items-center justify-center gap-2 w-full bg-[#00d4ff] text-black font-semibold px-4 py-2.5 rounded-lg hover:bg-[#00b8e6] transition-all duration-300 text-sm mt-2"
+                  >
+                    📖 View Details
+                    <span className="group-hover:translate-x-1 transition-transform">→</span>
+                  </Link>
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         )}
       </div>
     </div>
   );
-}
+} 
