@@ -7,7 +7,7 @@ export default function Home() {
   const [recentEbooks, setRecentEbooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ posts: 0, ebooks: 0 });
-
+  
   useEffect(() => {
     Promise.all([getPosts(), getEbooks()])
       .then(([postsRes, ebooksRes]) => {
@@ -20,7 +20,24 @@ export default function Home() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
-
+  
+  // Helper function to check if image is SVG
+  const isSvgImage = (url) => {
+    if (!url) return false;
+    return url.startsWith('data:image/svg+xml') || url.endsWith('.svg');
+  };
+  
+  // Helper function to extract SVG code from data URL
+  const getSvgCode = (url) => {
+    if (!url || !url.startsWith('data:image/svg+xml')) return '';
+    try {
+      const svgContent = decodeURIComponent(url.split(',')[1] || '');
+      return svgContent;
+    } catch (e) {
+      return '';
+    }
+  };
+  
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -31,7 +48,7 @@ export default function Home() {
       </div>
     );
   }
-
+  
   return (
     <div className="min-h-screen bg-[#0b0f1c]">
       {/* Hero Section */}
@@ -93,18 +110,35 @@ export default function Home() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {recentPosts.map(post => (
-              <Link key={post.id} to={`/post/${post.id}`} className="group bg-[#0f1422] rounded-xl overflow-hidden border border-[#1e2a3a] hover:border-[#00d4ff] transition-all duration-300 hover:transform hover:-translate-y-1">
-                {post.image_url && (
-                  <div className="overflow-hidden h-44">
-                    <img src={post.image_url} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  </div>
-                )}
-                <div className="p-4">
-                  <h3 className="font-semibold text-white mb-2 line-clamp-2">{post.title}</h3>
-                  <p className="text-sm text-[#b0bedb] line-clamp-2 mb-3">{post.description}</p>
-                  <span className="text-xs text-[#00d4ff]">Read more →</span>
+              <div key={post.id} className="group bg-[#0f1422] rounded-xl overflow-hidden border border-[#1e2a3a] hover:border-[#00d4ff] transition-all duration-300 hover:transform hover:-translate-y-1 flex flex-col">
+                <Link to={`/post/${post.id}`} className="block">
+                  {post.image_url && (
+                    <div className="overflow-hidden h-44">
+                      {isSvgImage(post.image_url) ? (
+                        <div 
+                          dangerouslySetInnerHTML={{ __html: getSvgCode(post.image_url) }}
+                          className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0f1422] to-[#0a0e1a]"
+                        />
+                      ) : (
+                        <img src={post.image_url} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      )}
+                    </div>
+                  )}
+                </Link>
+                <div className="p-4 flex flex-col flex-grow">
+                  <Link to={`/post/${post.id}`} className="block">
+                    <h3 className="font-semibold text-white mb-2 line-clamp-2 hover:text-[#00d4ff] transition">{post.title}</h3>
+                  </Link>
+                  <p className="text-sm text-[#b0bedb] line-clamp-2 mb-3 flex-grow">{post.description}</p>
+                  <Link 
+                    to={`/post/${post.id}`}
+                    className="inline-flex items-center justify-center gap-2 w-full bg-gradient-to-r from-[#00d4ff] to-[#00b8e6] text-black font-bold px-4 py-2 rounded-lg hover:from-[#00b8e6] hover:to-[#0099cc] transition-all duration-300 text-sm shadow-lg hover:shadow-[#00d4ff]/20"
+                  >
+                    📖 Read Article
+                    <span className="group-hover:translate-x-1 transition-transform">→</span>
+                  </Link>
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         )}
@@ -129,27 +163,45 @@ export default function Home() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {recentEbooks.map(ebook => (
-              <Link key={ebook.id} to={`/ebook/${ebook.id}`} className="group bg-[#0f1422] rounded-xl overflow-hidden border border-[#1e2a3a] hover:border-[#00d4ff] transition-all duration-300 hover:transform hover:-translate-y-1">
-                {ebook.cover_image_url ? (
-                  <div className="overflow-hidden h-44">
-                    <img src={ebook.cover_image_url} alt={ebook.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  </div>
-                ) : (
-                  <div className="h-44 bg-gradient-to-br from-[#0f1422] to-[#0a0e1a] flex items-center justify-center">
-                    <span className="text-5xl">📘</span>
-                  </div>
-                )}
-                <div className="p-4">
+              <div key={ebook.id} className="group bg-[#0f1422] rounded-xl overflow-hidden border border-[#1e2a3a] hover:border-[#00d4ff] transition-all duration-300 hover:transform hover:-translate-y-1 flex flex-col">
+                <Link to={`/ebook/${ebook.id}`} className="block">
+                  {ebook.cover_image_url ? (
+                    <div className="overflow-hidden h-44">
+                      {isSvgImage(ebook.cover_image_url) ? (
+                        <div 
+                          dangerouslySetInnerHTML={{ __html: getSvgCode(ebook.cover_image_url) }}
+                          className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0f1422] to-[#0a0e1a]"
+                        />
+                      ) : (
+                        <img src={ebook.cover_image_url} alt={ebook.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="h-44 bg-gradient-to-br from-[#0f1422] to-[#0a0e1a] flex items-center justify-center">
+                      <span className="text-5xl">📘</span>
+                    </div>
+                  )}
+                </Link>
+                <div className="p-4 flex flex-col flex-grow">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-xs px-2 py-0.5 rounded-full bg-[#00d4ff]/10 text-[#00d4ff]">
-                      {ebook.file_type === 'html' ? 'HTML Ebook' : 'PDF'}
+                      {ebook.file_type === 'html' ? '📘 HTML Ebook' : '📕 PDF'}
                     </span>
                   </div>
-                  <h3 className="font-semibold text-white mb-2 line-clamp-2">{ebook.title}</h3>
-                  <p className="text-sm text-[#b0bedb] line-clamp-2 mb-3">{ebook.description}</p>
-                  <span className="text-xs text-[#00d4ff]">View details →</span>
+                  <Link to={`/ebook/${ebook.id}`} className="block">
+                    <h3 className="font-semibold text-white mb-2 line-clamp-2 hover:text-[#00d4ff] transition">{ebook.title}</h3>
+                  </Link>
+                  <p className="text-sm text-[#b0bedb] line-clamp-2 mb-3 flex-grow">{ebook.description}</p>
+                  {/* ✅ CHANGED: "Read Ebook" Button */}
+                  <Link 
+                    to={`/ebook/${ebook.id}`}
+                    className="inline-flex items-center justify-center gap-2 w-full bg-gradient-to-r from-[#00d4ff] to-[#00b8e6] text-black font-bold px-4 py-2 rounded-lg hover:from-[#00b8e6] hover:to-[#0099cc] transition-all duration-300 text-sm shadow-lg hover:shadow-[#00d4ff]/20"
+                  >
+                    📖 Read Ebook
+                    <span className="group-hover:translate-x-1 transition-transform">→</span>
+                  </Link>
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         )}

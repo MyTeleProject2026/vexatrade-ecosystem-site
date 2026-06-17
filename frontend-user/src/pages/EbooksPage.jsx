@@ -176,7 +176,7 @@ export default function EbooksPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
             {filteredEbooks.map(ebook => (
               <div key={ebook.id} className="group bg-[#0f1422] rounded-xl overflow-hidden border border-[#1e2a3a] hover:border-[#00d4ff] transition-all duration-300 hover:transform hover:-translate-y-1 flex flex-col">
-                {/* Cover Image - Clickable with SVG Support */}
+                {/* Cover Image - Clickable */}
                 <Link to={`/ebook/${ebook.id}`} className="block">
                   {ebook.cover_image_url ? (
                     <div className="overflow-hidden h-48">
@@ -220,12 +220,12 @@ export default function EbooksPage() {
                     {ebook.description || 'No description available'}
                   </p>
                   
-                  {/* VISIBLE BUTTON */}
+                  {/* ✅ CHANGED: "Read Ebook" Button - Visible and Clickable */}
                   <Link 
                     to={`/ebook/${ebook.id}`}
                     className="inline-flex items-center justify-center gap-2 w-full bg-gradient-to-r from-[#00d4ff] to-[#00b8e6] text-black font-bold px-4 py-2.5 rounded-lg hover:from-[#00b8e6] hover:to-[#0099cc] transition-all duration-300 text-sm shadow-lg hover:shadow-[#00d4ff]/20"
                   >
-                    📖 View Details
+                    📖 Read Ebook
                     <span className="group-hover:translate-x-1 transition-transform">→</span>
                   </Link>
                 </div>

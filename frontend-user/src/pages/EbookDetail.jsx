@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getEbook, viewEbook } from '../api';
+import { getEbook } from '../api';
 
 export default function EbookDetail() {
   const { id } = useParams();
@@ -44,10 +44,6 @@ export default function EbookDetail() {
       .finally(() => setLoading(false));
   }, [id]);
   
-  const handleReadOnline = () => {
-    viewEbook(id);
-  };
-  
   // Helper function to check if image is SVG
   const isSvgImage = (url) => {
     if (!url) return false;
@@ -80,13 +76,11 @@ export default function EbookDetail() {
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
         <div className="text-center max-w-md">
-          <div className="text-6xl mb-4">🔒</div>
+          <div className="text-6xl mb-4">📚</div>
           <h2 className="text-xl font-semibold text-white mb-2">
             {error?.includes('login') || error?.includes('Session') ? 'Authentication Required' : 'Ebook Not Found'}
           </h2>
-          <p className="text-[#b0bedb]">
-            {error || "The ebook doesn't exist."}
-          </p>
+          <p className="text-[#b0bedb]">{error || "The ebook doesn't exist."}</p>
           {(error?.includes('login') || error?.includes('Session')) && (
             <button
               onClick={() => {
@@ -110,41 +104,107 @@ export default function EbookDetail() {
     );
   }
   
+  // ✅ CHECK: If ebook is HTML mode with content, display it directly like a post
+  const isHtmlEbook = ebook.file_type === 'html' || ebook.is_html_mode;
+  
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <article className="max-w-4xl mx-auto px-4 py-8">
+      {/* Back Button */}
       <button
         onClick={() => navigate(-1)}
         className="inline-flex items-center gap-2 text-[#b0bedb] hover:text-[#00d4ff] transition mb-6"
       >
-        ← Back
+        ← Back to Library
       </button>
 
-      <div className="bg-[#0f1422] rounded-2xl overflow-hidden border border-[#2a3440]">
-        {ebook.cover_image_url && (
-          <div className="h-64 overflow-hidden">
-            {isSvgImage(ebook.cover_image_url) ? (
-              <div 
-                dangerouslySetInnerHTML={{ __html: getSvgCode(ebook.cover_image_url) }}
-                className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0f1422] to-[#0a0e1a]"
-              />
-            ) : (
-              <img src={ebook.cover_image_url} alt={ebook.title} className="w-full h-full object-cover" />
-            )}
-          </div>
-        )}
-        
-        <div className="p-6">
-          <h1 className="text-2xl font-bold text-white mb-4">{ebook.title}</h1>
-          <p className="text-[#b0bedb] mb-6">{ebook.description || 'No description available.'}</p>
-          
-          <button
-            onClick={handleReadOnline}
-            className="w-full bg-[#00d4ff] text-black font-semibold py-3 rounded-xl hover:bg-[#00b8e6] transition text-lg"
-          >
-            📖 Read Online Now
-          </button>
+      {/* Cover Image */}
+      {ebook.cover_image_url && (
+        <div className="rounded-2xl overflow-hidden mb-8">
+          {isSvgImage(ebook.cover_image_url) ? (
+            <div 
+              dangerouslySetInnerHTML={{ __html: getSvgCode(ebook.cover_image_url) }}
+              className="w-full max-h-[400px] flex items-center justify-center bg-gradient-to-br from-[#0f1422] to-[#0a0e1a]"
+            />
+          ) : (
+            <img 
+              src={ebook.cover_image_url} 
+              alt={ebook.title} 
+              className="w-full max-h-[400px] object-cover"
+            />
+          )}
         </div>
+      )}
+
+      {/* Title */}
+      <h1 className="text-3xl font-bold text-white mb-4">{ebook.title}</h1>
+      
+      {/* Type Badge */}
+      <div className="flex items-center gap-2 mb-6 pb-6 border-b border-[#2a3440]">
+        <span className="text-xs px-3 py-1 rounded-full bg-[#00d4ff]/10 text-[#00d4ff]">
+          {isHtmlEbook ? '📘 HTML Ebook' : '📕 PDF Document'}
+        </span>
       </div>
-    </div>
+
+      {/* ✅ Ebook Content - Displayed Directly Like Post Content */}
+      {isHtmlEbook && ebook.content ? (
+        // HTML Ebook - Show content directly on page
+        <div 
+          className="prose prose-invert max-w-none 
+            prose-headings:text-white prose-headings:font-semibold
+            prose-h1:text-2xl prose-h1:sm:text-3xl
+            prose-h2:text-xl prose-h2:sm:text-2xl
+            prose-p:text-[#b0bedb] prose-p:text-sm prose-p:sm:text-base
+            prose-a:text-[#00d4ff] prose-a:no-underline hover:prose-a:underline
+            prose-strong:text-white
+            prose-code:text-[#00d4ff] prose-code:bg-[#1e293b] prose-code:px-1 prose-code:py-0.5 prose-code:rounded
+            prose-pre:bg-[#0f1422] prose-pre:border prose-pre:border-[#2a3440]
+            prose-img:rounded-xl prose-img:mx-auto
+            prose-ul:text-[#b0bedb] prose-ol:text-[#b0bedb] prose-li:text-[#b0bedb]
+            prose-blockquote:border-l-[#00d4ff] prose-blockquote:text-[#b0bedb] prose-blockquote:bg-[#0f1422] prose-blockquote:p-4 prose-blockquote:rounded-xl"
+          dangerouslySetInnerHTML={{ __html: ebook.content }}
+        />
+      ) : ebook.file_url && ebook.file_url.endsWith('.pdf') ? (
+        // ✅ PDF Ebook - Show PDF viewer or download link
+        <div className="bg-[#0f1422] rounded-xl p-8 text-center border border-[#2a3440]">
+          <div className="text-6xl mb-4">📕</div>
+          <h3 className="text-xl font-semibold text-white mb-2">PDF Document</h3>
+          <p className="text-[#b0bedb] mb-6">
+            This is a PDF document. You can download it or view it online.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <a
+              href={ebook.file_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 bg-[#00d4ff] text-black font-bold px-6 py-3 rounded-lg hover:bg-[#00b8e6] transition"
+            >
+              📖 View PDF
+            </a>
+            <a
+              href={ebook.file_url}
+              download
+              className="inline-flex items-center justify-center gap-2 bg-[#0f1422] border border-[#2a3440] text-white font-bold px-6 py-3 rounded-lg hover:border-[#00d4ff] transition"
+            >
+              ⬇️ Download PDF
+            </a>
+          </div>
+        </div>
+      ) : (
+        // ✅ Fallback - Show description and download option
+        <div className="bg-[#0f1422] rounded-xl p-8 text-center border border-[#2a3440]">
+          <div className="text-6xl mb-4">📄</div>
+          <p className="text-[#b0bedb] mb-6">{ebook.description || 'No content available.'}</p>
+          {ebook.file_url && (
+            <a
+              href={ebook.file_url}
+              download
+              className="inline-flex items-center justify-center gap-2 bg-[#00d4ff] text-black font-bold px-6 py-3 rounded-lg hover:bg-[#00b8e6] transition"
+            >
+              ⬇️ Download Ebook
+            </a>
+          )}
+        </div>
+      )}
+    </article>
   );
 }
