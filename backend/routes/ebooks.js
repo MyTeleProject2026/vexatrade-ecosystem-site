@@ -36,36 +36,25 @@ const upload = multer({
   fileFilter: fileFilter
 });
 
-// ✅ IMPROVED SVG validation & cleaning
+// ✅ SVG validation
 const validateAndCleanSvg = (svgCode) => {
   if (!svgCode || typeof svgCode !== 'string') return null;
   const trimmed = svgCode.trim();
   if (!trimmed) return null;
 
-  // If it contains <html> or <head> or <!DOCTYPE>, it's HTML, not SVG
   if (trimmed.includes('<!DOCTYPE') || trimmed.includes('<html') || trimmed.includes('<head')) {
     return { valid: false, error: 'HTML detected – use SVG only for images' };
   }
-
-  // Must have <svg> and </svg>
   if (!trimmed.includes('<svg') || !trimmed.includes('</svg>')) {
     return { valid: false, error: 'Invalid SVG: missing <svg> or </svg>' };
   }
-
   let cleanSvg = trimmed;
-
-  // Ensure xmlns
   if (!cleanSvg.includes('xmlns')) {
     cleanSvg = cleanSvg.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
   }
-
-  // Ensure viewBox (if missing, add a default)
   if (!cleanSvg.includes('viewBox')) {
     cleanSvg = cleanSvg.replace('<svg', '<svg viewBox="0 0 400 200"');
   }
-
-  // Try to parse with DOMParser (only on server side, we can do a simple check)
-  // For Node, we'll just trust the structure; we can also check closing tags count.
   return { valid: true, svg: cleanSvg };
 };
 
@@ -120,10 +109,25 @@ router.get('/:id', verifyUserToken, async (req, res) => {
   }
 });
 
-// View HTML ebook (user)
-router.get('/view/:id', verifyUserToken, async (req, res) => {
+// ✅ FIXED: View HTML ebook (accepts token via query param for admin preview)
+router.get('/view/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const token = req.query.token || req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).send('<h1>Authentication required</h1>');
+    }
+
+    // Verify token (try both user and admin)
+    let decoded;
+    try {
+      decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(401).send('<h1>Invalid or expired token</h1>');
+    }
+
+    // Allow access if token is valid (user or admin)
     const [rows] = await pool.query(`
       SELECT content, file_type, title 
       FROM ebooks 
@@ -183,7 +187,7 @@ router.get('/view/:id', verifyUserToken, async (req, res) => {
   }
 });
 
-// Create ebook (admin) - FIXED SVG handling
+// Create ebook (admin)
 router.post('/', verifyAdminToken, upload.fields([
   { name: 'file', maxCount: 1 },
   { name: 'cover', maxCount: 1 }
@@ -212,30 +216,23 @@ router.post('/', verifyAdminToken, upload.fields([
     
     let coverImageUrl = null;
     
-    // Handle cover file upload
     if (coverFile) {
       coverImageUrl = `/uploads/ebooks/${coverFile.filename}`;
-    } 
-    // Handle SVG code
-    else if (image_code && image_code.trim()) {
+    } else if (image_code && image_code.trim()) {
       const validation = validateAndCleanSvg(image_code);
       if (validation && validation.valid) {
         const cleanSvg = validation.svg;
-        // Save as .svg file
         const svgFileName = `cover-${Date.now()}.svg`;
         const svgPath = path.join(__dirname, '../../uploads/ebooks/', svgFileName);
         fs.writeFileSync(svgPath, cleanSvg, 'utf8');
         coverImageUrl = `/uploads/ebooks/${svgFileName}`;
       } else {
-        // If invalid, return error instead of storing garbage
         return res.status(400).json({ 
           success: false, 
           message: validation ? validation.error : 'Invalid SVG code' 
         });
       }
-    } 
-    // Handle data URL image
-    else if (image_url_data && image_url_data.startsWith('data:image')) {
+    } else if (image_url_data && image_url_data.startsWith('data:image')) {
       coverImageUrl = image_url_data;
     }
     
@@ -275,7 +272,7 @@ router.post('/', verifyAdminToken, upload.fields([
   }
 });
 
-// Update ebook (admin) - FIXED SVG handling
+// Update ebook (admin)
 router.put('/:id', verifyAdminToken, upload.fields([
   { name: 'file', maxCount: 1 },
   { name: 'cover', maxCount: 1 }
@@ -318,7 +315,6 @@ router.put('/:id', verifyAdminToken, upload.fields([
     
     let coverImageUrl = existing[0].cover_image_url;
     
-    // Handle cover file upload
     if (req.files && req.files.cover) {
       const coverFile = req.files.cover[0];
       coverImageUrl = `/uploads/ebooks/${coverFile.filename}`;
@@ -331,13 +327,10 @@ router.put('/:id', verifyAdminToken, upload.fields([
           fs.unlinkSync(oldCoverPath);
         }
       }
-    } 
-    // Handle SVG code
-    else if (image_code && image_code.trim()) {
+    } else if (image_code && image_code.trim()) {
       const validation = validateAndCleanSvg(image_code);
       if (validation && validation.valid) {
         const cleanSvg = validation.svg;
-        // Delete old cover if exists
         if (existing[0].cover_image_url && !existing[0].cover_image_url.startsWith('data:')) {
           const oldCoverPath = path.join(__dirname, '../..', existing[0].cover_image_url);
           if (fs.existsSync(oldCoverPath)) {
@@ -356,9 +349,7 @@ router.put('/:id', verifyAdminToken, upload.fields([
           message: validation ? validation.error : 'Invalid SVG code' 
         });
       }
-    } 
-    // Handle data URL image
-    else if (image_url_data && image_url_data.startsWith('data:image')) {
+    } else if (image_url_data && image_url_data.startsWith('data:image')) {
       coverImageUrl = image_url_data;
       updates.push('cover_image_url = ?');
       values.push(coverImageUrl);
@@ -445,7 +436,7 @@ router.delete('/:id', verifyAdminToken, async (req, res) => {
   }
 });
 
-// Download ebook (user)
+// ✅ FIXED: Download ebook (user) – uses content for HTML ebooks, file for PDF
 router.get('/download/:id', verifyUserToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -457,12 +448,14 @@ router.get('/download/:id', verifyUserToken, async (req, res) => {
     
     const ebook = rows[0];
     
+    // For HTML ebooks, serve content directly
     if (ebook.file_type === 'html' && ebook.content) {
       res.setHeader('Content-Type', 'text/html');
       res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(ebook.title)}.html"`);
       return res.send(ebook.content);
     }
     
+    // For PDF, serve file
     const filePath = path.join(__dirname, '../..', ebook.file_url);
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ success: false, message: 'File not found' });
