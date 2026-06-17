@@ -9,17 +9,42 @@ const api = axios.create({
   },
 });
 
-// Add token to requests
+// ✅ Add debug logging for admin token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('adminToken');
+  
+  console.log('🔑 Admin Token in localStorage:', token ? '✅ Present' : '❌ Missing');
+  console.log('📡 Admin Request:', config.method.toUpperCase(), config.url);
+  
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+    console.log('✅ Admin token added to request headers');
+  } else {
+    console.warn('⚠️ No admin token found for request:', config.url);
   }
+  
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => {
+    console.log('✅ Admin Response success:', response.config.url);
+    return response;
+  },
+  (error) => {
+    console.error('❌ Admin API Error:', error.response?.status, error.response?.data);
+    if (error.response?.status === 401) {
+      console.warn('⚠️ Admin unauthorized - clearing token');
+      localStorage.removeItem('adminToken');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
 // ============ ADMIN AUTH ============
 export const adminLogin = (email, password) => {
+  console.log('🔐 Admin login attempt for:', email);
   return api.post('/admin/login', { email, password });
 };
 
@@ -75,6 +100,17 @@ export const updateEbook = (id, formData) => {
 
 export const deleteEbook = (id) => {
   return api.delete(`/ebooks/${id}`);
+};
+
+// ✅ FIXED: View ebook with admin token
+export const viewEbookAsAdmin = (id) => {
+  const token = localStorage.getItem('adminToken');
+  if (!token) {
+    alert('Please login as admin first');
+    return;
+  }
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://vexatrade-ecosystem-api.onrender.com';
+  window.open(`${apiUrl}/api/ebooks/view/${id}?token=${encodeURIComponent(token)}`, '_blank');
 };
 
 export default api;
