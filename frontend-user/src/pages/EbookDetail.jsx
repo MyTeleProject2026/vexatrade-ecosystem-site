@@ -11,13 +11,11 @@ export default function EbookDetail() {
   
   useEffect(() => {
     const token = localStorage.getItem('userToken');
-    
     if (!token) {
       setError('Please login to view this ebook');
       setLoading(false);
       return;
     }
-    
     getEbook(id)
       .then(res => {
         if (res.data.success) {
@@ -32,9 +30,7 @@ export default function EbookDetail() {
           setError('Session expired. Please login again.');
           localStorage.removeItem('userToken');
           localStorage.removeItem('userEmail');
-          setTimeout(() => {
-            window.location.href = '/';
-          }, 2000);
+          setTimeout(() => window.location.href = '/', 2000);
         } else if (err.response?.status === 404) {
           setError('Ebook not found');
         } else {
@@ -44,13 +40,12 @@ export default function EbookDetail() {
       .finally(() => setLoading(false));
   }, [id]);
   
-  // Helper function to check if image is SVG
-  const isSvgImage = (url) => {
-    if (!url) return false;
-    return url.startsWith('data:image/svg+xml') || url.endsWith('.svg');
+  // ✅ Helper: Check if it's an inline SVG data URI
+  const isInlineSvg = (url) => {
+    return url && typeof url === 'string' && url.startsWith('data:image/svg+xml');
   };
   
-  // Helper function to extract SVG code from data URL
+  // ✅ Helper: Extract SVG code from data URI
   const getSvgCode = (url) => {
     if (!url || !url.startsWith('data:image/svg+xml')) return '';
     try {
@@ -93,10 +88,7 @@ export default function EbookDetail() {
               🔐 Login Again
             </button>
           )}
-          <button
-            onClick={() => navigate('/ebooks')}
-            className="mt-4 ml-2 inline-flex items-center gap-2 text-[#00d4ff] hover:underline"
-          >
+          <button onClick={() => navigate('/ebooks')} className="mt-4 ml-2 inline-flex items-center gap-2 text-[#00d4ff] hover:underline">
             ← Back to Library
           </button>
         </div>
@@ -108,27 +100,20 @@ export default function EbookDetail() {
   
   return (
     <article className="max-w-4xl mx-auto px-4 py-8">
-      {/* ✅ Back Button - Goes to Home */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
-        <button
-          onClick={() => navigate('/')}
-          className="inline-flex items-center gap-2 text-[#b0bedb] hover:text-[#00d4ff] transition text-sm"
-        >
+        <button onClick={() => navigate('/')} className="inline-flex items-center gap-2 text-[#b0bedb] hover:text-[#00d4ff] transition text-sm">
           ← Back to Home
         </button>
         <span className="text-[#2a3440]">|</span>
-        <button
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 text-[#b0bedb] hover:text-[#00d4ff] transition text-sm"
-        >
+        <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-[#b0bedb] hover:text-[#00d4ff] transition text-sm">
           ← Back
         </button>
       </div>
 
-      {/* Cover Image */}
+      {/* Cover Image – fixed */}
       {ebook.cover_image_url && (
         <div className="rounded-2xl overflow-hidden mb-8">
-          {isSvgImage(ebook.cover_image_url) ? (
+          {isInlineSvg(ebook.cover_image_url) ? (
             <div 
               dangerouslySetInnerHTML={{ __html: getSvgCode(ebook.cover_image_url) }}
               className="w-full max-h-[400px] flex items-center justify-center bg-gradient-to-br from-[#0f1422] to-[#0a0e1a]"
@@ -138,22 +123,21 @@ export default function EbookDetail() {
               src={ebook.cover_image_url} 
               alt={ebook.title} 
               className="w-full max-h-[400px] object-cover"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
             />
           )}
         </div>
       )}
 
-      {/* Title */}
       <h1 className="text-3xl font-bold text-white mb-4">{ebook.title}</h1>
-      
-      {/* Type Badge */}
       <div className="flex items-center gap-2 mb-6 pb-6 border-b border-[#2a3440]">
         <span className="text-xs px-3 py-1 rounded-full bg-[#00d4ff]/10 text-[#00d4ff]">
           {isHtmlEbook ? '📘 HTML Ebook' : '📕 PDF Document'}
         </span>
       </div>
 
-      {/* Ebook Content */}
       {isHtmlEbook && ebook.content ? (
         <div 
           className="prose prose-invert max-w-none 
@@ -174,23 +158,12 @@ export default function EbookDetail() {
         <div className="bg-[#0f1422] rounded-xl p-8 text-center border border-[#2a3440]">
           <div className="text-6xl mb-4">📕</div>
           <h3 className="text-xl font-semibold text-white mb-2">PDF Document</h3>
-          <p className="text-[#b0bedb] mb-6">
-            This is a PDF document. You can download it or view it online.
-          </p>
+          <p className="text-[#b0bedb] mb-6">This is a PDF document. You can download it or view it online.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a
-              href={ebook.file_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 bg-[#00d4ff] text-black font-bold px-6 py-3 rounded-lg hover:bg-[#00b8e6] transition"
-            >
+            <a href={ebook.file_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 bg-[#00d4ff] text-black font-bold px-6 py-3 rounded-lg hover:bg-[#00b8e6] transition">
               📖 View PDF
             </a>
-            <a
-              href={ebook.file_url}
-              download
-              className="inline-flex items-center justify-center gap-2 bg-[#0f1422] border border-[#2a3440] text-white font-bold px-6 py-3 rounded-lg hover:border-[#00d4ff] transition"
-            >
+            <a href={ebook.file_url} download className="inline-flex items-center justify-center gap-2 bg-[#0f1422] border border-[#2a3440] text-white font-bold px-6 py-3 rounded-lg hover:border-[#00d4ff] transition">
               ⬇️ Download PDF
             </a>
           </div>
@@ -200,11 +173,7 @@ export default function EbookDetail() {
           <div className="text-6xl mb-4">📄</div>
           <p className="text-[#b0bedb] mb-6">{ebook.description || 'No content available.'}</p>
           {ebook.file_url && (
-            <a
-              href={ebook.file_url}
-              download
-              className="inline-flex items-center justify-center gap-2 bg-[#00d4ff] text-black font-bold px-6 py-3 rounded-lg hover:bg-[#00b8e6] transition"
-            >
+            <a href={ebook.file_url} download className="inline-flex items-center justify-center gap-2 bg-[#00d4ff] text-black font-bold px-6 py-3 rounded-lg hover:bg-[#00b8e6] transition">
               ⬇️ Download Ebook
             </a>
           )}

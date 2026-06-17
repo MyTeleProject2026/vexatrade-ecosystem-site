@@ -21,13 +21,12 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
   
-  // Helper function to check if image is SVG
-  const isSvgImage = (url) => {
-    if (!url) return false;
-    return url.startsWith('data:image/svg+xml') || url.endsWith('.svg');
+  // ✅ Helper: Check if it's an inline SVG data URI
+  const isInlineSvg = (url) => {
+    return url && typeof url === 'string' && url.startsWith('data:image/svg+xml');
   };
   
-  // Helper function to extract SVG code from data URL
+  // ✅ Helper: Extract SVG code from data URI
   const getSvgCode = (url) => {
     if (!url || !url.startsWith('data:image/svg+xml')) return '';
     try {
@@ -55,7 +54,6 @@ export default function Home() {
       <div className="relative bg-gradient-to-br from-[#0a0e1a] via-[#0f172a] to-[#07111e] border-b border-[#00d4ff]/20">
         <div className="absolute top-0 right-0 w-96 h-96 bg-[#00d4ff]/5 rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#00d4ff]/5 rounded-full blur-3xl"></div>
-        
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
           <div className="text-center">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/20 text-xs text-[#00d4ff] mb-4">
@@ -72,8 +70,6 @@ export default function Home() {
               Your gateway to blockchain news, educational ebooks, and ecosystem updates
             </p>
           </div>
-          
-          {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mt-12 max-w-2xl mx-auto">
             <Link to="/posts" className="group bg-[#0f1422]/50 backdrop-blur-sm rounded-2xl p-6 border border-[#2a3440] hover:border-[#00d4ff] transition-all duration-300 text-center hover:transform hover:-translate-y-1">
               <div className="text-4xl mb-3">📰</div>
@@ -102,7 +98,6 @@ export default function Home() {
             View all <span>→</span>
           </Link>
         </div>
-        
         {recentPosts.length === 0 ? (
           <div className="text-center py-12 bg-[#0f1422] rounded-2xl">
             <p className="text-[#b0bedb]">No posts yet. Check back later.</p>
@@ -114,13 +109,21 @@ export default function Home() {
                 <Link to={`/post/${post.id}`} className="block">
                   {post.image_url && (
                     <div className="overflow-hidden h-44">
-                      {isSvgImage(post.image_url) ? (
+                      {isInlineSvg(post.image_url) ? (
                         <div 
                           dangerouslySetInnerHTML={{ __html: getSvgCode(post.image_url) }}
                           className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0f1422] to-[#0a0e1a]"
                         />
                       ) : (
-                        <img src={post.image_url} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <img 
+                          src={post.image_url} 
+                          alt={post.title} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0f1422] to-[#0a0e1a]"><span class="text-4xl">📄</span></div>';
+                          }}
+                        />
                       )}
                     </div>
                   )}
@@ -155,7 +158,6 @@ export default function Home() {
             Browse library <span>→</span>
           </Link>
         </div>
-        
         {recentEbooks.length === 0 ? (
           <div className="text-center py-12 bg-[#0f1422] rounded-2xl">
             <p className="text-[#b0bedb]">No ebooks available yet.</p>
@@ -167,13 +169,21 @@ export default function Home() {
                 <Link to={`/ebook/${ebook.id}`} className="block">
                   {ebook.cover_image_url ? (
                     <div className="overflow-hidden h-44">
-                      {isSvgImage(ebook.cover_image_url) ? (
+                      {isInlineSvg(ebook.cover_image_url) ? (
                         <div 
                           dangerouslySetInnerHTML={{ __html: getSvgCode(ebook.cover_image_url) }}
                           className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0f1422] to-[#0a0e1a]"
                         />
                       ) : (
-                        <img src={ebook.cover_image_url} alt={ebook.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <img 
+                          src={ebook.cover_image_url} 
+                          alt={ebook.title} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0f1422] to-[#0a0e1a]"><span class="text-4xl">📘</span></div>';
+                          }}
+                        />
                       )}
                     </div>
                   ) : (
@@ -192,7 +202,6 @@ export default function Home() {
                     <h3 className="font-semibold text-white mb-2 line-clamp-2 hover:text-[#00d4ff] transition">{ebook.title}</h3>
                   </Link>
                   <p className="text-sm text-[#b0bedb] line-clamp-2 mb-3 flex-grow">{ebook.description}</p>
-                  {/* ✅ CHANGED: "Read Ebook" Button */}
                   <Link 
                     to={`/ebook/${ebook.id}`}
                     className="inline-flex items-center justify-center gap-2 w-full bg-gradient-to-r from-[#00d4ff] to-[#00b8e6] text-black font-bold px-4 py-2 rounded-lg hover:from-[#00b8e6] hover:to-[#0099cc] transition-all duration-300 text-sm shadow-lg hover:shadow-[#00d4ff]/20"

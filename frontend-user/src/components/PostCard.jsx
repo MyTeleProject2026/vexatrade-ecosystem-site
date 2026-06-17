@@ -1,13 +1,12 @@
 import { Link } from 'react-router-dom';
 
 export default function PostCard({ post }) {
-  // Helper function to check if image is SVG
-  const isSvgImage = (url) => {
-    if (!url) return false;
-    return url.startsWith('data:image/svg+xml') || url.endsWith('.svg');
+  // ✅ Helper: Check if it's an inline SVG data URI (from old system)
+  const isInlineSvg = (url) => {
+    return url && typeof url === 'string' && url.startsWith('data:image/svg+xml');
   };
   
-  // Helper function to extract SVG code from data URL
+  // ✅ Helper: Extract SVG code from data URI
   const getSvgCode = (url) => {
     if (!url || !url.startsWith('data:image/svg+xml')) return '';
     try {
@@ -22,16 +21,22 @@ export default function PostCard({ post }) {
     <div className="group bg-[#0f1422] rounded-xl overflow-hidden border border-[#1e2a3a] hover:border-[#00d4ff] transition-all duration-300 hover:transform hover:-translate-y-1">
       {post.image_url && (
         <div className="overflow-hidden h-40 sm:h-48">
-          {isSvgImage(post.image_url) ? (
+          {isInlineSvg(post.image_url) ? (
+            // ✅ Inline SVG – render as HTML
             <div 
               dangerouslySetInnerHTML={{ __html: getSvgCode(post.image_url) }}
               className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0f1422] to-[#0a0e1a]"
             />
           ) : (
+            // ✅ Regular image (JPG, PNG, or SVG file URL from Cloudinary) – use <img>
             <img 
               src={post.image_url} 
               alt={post.title} 
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0f1422] to-[#0a0e1a]"><span class="text-4xl">📄</span></div>';
+              }}
             />
           )}
         </div>
@@ -43,7 +48,7 @@ export default function PostCard({ post }) {
           to={`/post/${post.id}`} 
           className="inline-flex items-center gap-1 text-xs sm:text-sm text-[#00d4ff] hover:gap-2 transition-all"
         >
-          Read more <span>→</span>
+          Read Article <span>→</span>
         </Link>
       </div>
     </div>
