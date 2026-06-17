@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getEbook } from '../api';
+import { getEbook, viewEbook } from '../api';
 
 export default function EbookDetail() {
   const { id } = useParams();
@@ -10,6 +10,14 @@ export default function EbookDetail() {
   const [error, setError] = useState('');
   
   useEffect(() => {
+    const token = localStorage.getItem('userToken');
+    
+    if (!token) {
+      setError('Please login to view this ebook');
+      setLoading(false);
+      return;
+    }
+    
     getEbook(id)
       .then(res => {
         if (res.data.success) {
@@ -19,20 +27,25 @@ export default function EbookDetail() {
         }
       })
       .catch(err => {
-        console.error(err);
-        setError('Failed to load ebook');
+        console.error('Error loading ebook:', err);
+        if (err.response?.status === 401) {
+          setError('Session expired. Please login again.');
+          localStorage.removeItem('userToken');
+          localStorage.removeItem('userEmail');
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 2000);
+        } else if (err.response?.status === 404) {
+          setError('Ebook not found');
+        } else {
+          setError('Failed to load ebook. Please try again.');
+        }
       })
       .finally(() => setLoading(false));
   }, [id]);
   
   const handleReadOnline = () => {
-    const token = localStorage.getItem('userToken');
-    if (!token) {
-      alert('Please login first');
-      return;
-    }
-    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://vexatrade-ecosystem-api.onrender.com';
-    window.open(`${apiUrl}/api/ebooks/view/${id}?token=${encodeURIComponent(token)}`, '_blank');
+    viewEbook(id);
   };
   
   // Helper function to check if image is SVG
@@ -66,13 +79,29 @@ export default function EbookDetail() {
   if (error || !ebook) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
-        <div className="text-center">
-          <div className="text-6xl mb-4">📚</div>
-          <h2 className="text-xl font-semibold text-white mb-2">Ebook Not Found</h2>
-          <p className="text-[#b0bedb]">{error || "The ebook doesn't exist."}</p>
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-4">🔒</div>
+          <h2 className="text-xl font-semibold text-white mb-2">
+            {error?.includes('login') || error?.includes('Session') ? 'Authentication Required' : 'Ebook Not Found'}
+          </h2>
+          <p className="text-[#b0bedb]">
+            {error || "The ebook doesn't exist."}
+          </p>
+          {(error?.includes('login') || error?.includes('Session')) && (
+            <button
+              onClick={() => {
+                localStorage.removeItem('userToken');
+                localStorage.removeItem('userEmail');
+                window.location.href = '/';
+              }}
+              className="mt-4 inline-flex items-center gap-2 bg-[#00d4ff] text-black px-6 py-2 rounded-full hover:bg-[#00b8e6] transition"
+            >
+              🔐 Login Again
+            </button>
+          )}
           <button
             onClick={() => navigate('/ebooks')}
-            className="mt-4 inline-flex items-center gap-2 text-[#00d4ff] hover:underline"
+            className="mt-4 ml-2 inline-flex items-center gap-2 text-[#00d4ff] hover:underline"
           >
             ← Back to Library
           </button>

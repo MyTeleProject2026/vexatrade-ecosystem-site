@@ -36,14 +36,12 @@ export const getPost = (id) => {
   return api.get(`/posts/${id}`);
 };
 
-// FIXED: Single createPost function that handles both normal and HTML mode
 export const createPost = (formData) => {
   return api.post('/posts', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   });
 };
 
-// FIXED: Single updatePost function that handles both normal and HTML mode
 export const updatePost = (id, formData) => {
   return api.put(`/posts/${id}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }

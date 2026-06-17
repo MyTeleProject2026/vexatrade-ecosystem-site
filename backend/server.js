@@ -19,10 +19,10 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// ✅ IMPORTANT: Serve uploads folder statically
+// ✅ Serve uploads folder statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Routes
+// ✅ Routes - order matters for /:id routes!
 app.use('/api/user', require('./routes/user'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/posts', require('./routes/posts'));
@@ -32,7 +32,7 @@ app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Server running' });
 });
 
-// ✅ Add a debug endpoint to check if file exists
+// ✅ Debug endpoint
 app.get('/api/debug/files', async (req, res) => {
   const uploadsDir = path.join(__dirname, 'uploads/ebooks');
   try {

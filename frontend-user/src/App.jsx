@@ -16,15 +16,32 @@ function App() {
   useEffect(() => {
     const token = localStorage.getItem('userToken');
     const email = localStorage.getItem('userEmail');
-    if (token && email) setUser({ email });
+    if (token && email) {
+      setUser({ email });
+      console.log('✅ User restored from localStorage:', email);
+    }
     setLoading(false);
   }, []);
   
   const handleLogin = async (email) => {
-    const res = await userLogin(email);
-    localStorage.setItem('userToken', res.data.token);
-    localStorage.setItem('userEmail', email);
-    setUser({ email });
+    try {
+      console.log('📧 Attempting login for:', email);
+      const res = await userLogin(email);
+      
+      // ✅ Check response and store token
+      if (res.data.success && res.data.token) {
+        localStorage.setItem('userToken', res.data.token);
+        localStorage.setItem('userEmail', email);
+        setUser({ email });
+        console.log('✅ Login successful, token stored');
+        return res;
+      } else {
+        throw new Error('No token received');
+      }
+    } catch (err) {
+      console.error('❌ Login failed:', err);
+      throw err;
+    }
   };
   
   if (loading) return null;

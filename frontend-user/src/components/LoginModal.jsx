@@ -1,23 +1,30 @@
 import { useState } from 'react';
+import { userLogin } from '../api';
 
 export default function LoginModal({ onLogin }) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    
+    console.log('📧 Login form submitted for:', email);
+    
     try {
+      // ✅ Call onLogin which handles API call and token storage
       await onLogin(email);
+      console.log('✅ Login successful, modal should close');
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
+      console.error('❌ Login error:', err);
+      setError(err.response?.data?.message || err.message || 'Login failed');
     } finally {
       setLoading(false);
     }
   };
-
+  
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
       <div className="bg-gradient-to-br from-[#131724] to-[#0f1422] rounded-2xl sm:rounded-3xl p-6 sm:p-8 w-full max-w-[90%] sm:max-w-md border border-[#00d4ff]/30 shadow-2xl animate-fadeIn">
