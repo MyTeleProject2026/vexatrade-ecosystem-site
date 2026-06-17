@@ -8,7 +8,7 @@ export default function EbookDetail() {
   const [ebook, setEbook] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
+  
   useEffect(() => {
     getEbook(id)
       .then(res => {
@@ -24,18 +24,34 @@ export default function EbookDetail() {
       })
       .finally(() => setLoading(false));
   }, [id]);
-
+  
   const handleReadOnline = () => {
     const token = localStorage.getItem('userToken');
     if (!token) {
       alert('Please login first');
       return;
     }
-    // This opens the ebook in a new tab
     const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://vexatrade-ecosystem-api.onrender.com';
     window.open(`${apiUrl}/api/ebooks/view/${id}?token=${encodeURIComponent(token)}`, '_blank');
   };
-
+  
+  // Helper function to check if image is SVG
+  const isSvgImage = (url) => {
+    if (!url) return false;
+    return url.startsWith('data:image/svg+xml') || url.endsWith('.svg');
+  };
+  
+  // Helper function to extract SVG code from data URL
+  const getSvgCode = (url) => {
+    if (!url || !url.startsWith('data:image/svg+xml')) return '';
+    try {
+      const svgContent = decodeURIComponent(url.split(',')[1] || '');
+      return svgContent;
+    } catch (e) {
+      return '';
+    }
+  };
+  
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -46,7 +62,7 @@ export default function EbookDetail() {
       </div>
     );
   }
-
+  
   if (error || !ebook) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
@@ -64,7 +80,7 @@ export default function EbookDetail() {
       </div>
     );
   }
-
+  
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <button
@@ -77,7 +93,14 @@ export default function EbookDetail() {
       <div className="bg-[#0f1422] rounded-2xl overflow-hidden border border-[#2a3440]">
         {ebook.cover_image_url && (
           <div className="h-64 overflow-hidden">
-            <img src={ebook.cover_image_url} alt={ebook.title} className="w-full h-full object-cover" />
+            {isSvgImage(ebook.cover_image_url) ? (
+              <div 
+                dangerouslySetInnerHTML={{ __html: getSvgCode(ebook.cover_image_url) }}
+                className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0f1422] to-[#0a0e1a]"
+              />
+            ) : (
+              <img src={ebook.cover_image_url} alt={ebook.title} className="w-full h-full object-cover" />
+            )}
           </div>
         )}
         

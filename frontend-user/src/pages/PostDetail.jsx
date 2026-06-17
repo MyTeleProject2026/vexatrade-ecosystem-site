@@ -7,7 +7,7 @@ export default function PostDetail() {
   const navigate = useNavigate();
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
-
+  
   useEffect(() => {
     getPost(id)
       .then(res => {
@@ -16,7 +16,24 @@ export default function PostDetail() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [id]);
-
+  
+  // Helper function to check if image is SVG
+  const isSvgImage = (url) => {
+    if (!url) return false;
+    return url.startsWith('data:image/svg+xml') || url.endsWith('.svg');
+  };
+  
+  // Helper function to extract SVG code from data URL
+  const getSvgCode = (url) => {
+    if (!url || !url.startsWith('data:image/svg+xml')) return '';
+    try {
+      const svgContent = decodeURIComponent(url.split(',')[1] || '');
+      return svgContent;
+    } catch (e) {
+      return '';
+    }
+  };
+  
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -27,7 +44,7 @@ export default function PostDetail() {
       </div>
     );
   }
-
+  
   if (!post) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
@@ -44,7 +61,7 @@ export default function PostDetail() {
       </div>
     );
   }
-
+  
   return (
     <article className="max-w-4xl mx-auto px-4 py-8">
       <button
@@ -56,7 +73,14 @@ export default function PostDetail() {
 
       {post.image_url && (
         <div className="rounded-2xl overflow-hidden mb-8">
-          <img src={post.image_url} alt={post.title} className="w-full max-h-[400px] object-cover" />
+          {isSvgImage(post.image_url) ? (
+            <div 
+              dangerouslySetInnerHTML={{ __html: getSvgCode(post.image_url) }}
+              className="w-full max-h-[400px] flex items-center justify-center bg-gradient-to-br from-[#0f1422] to-[#0a0e1a]"
+            />
+          ) : (
+            <img src={post.image_url} alt={post.title} className="w-full max-h-[400px] object-cover" />
+          )}
         </div>
       )}
 
@@ -73,4 +97,4 @@ export default function PostDetail() {
       </div>
     </article>
   );
-} 
+}

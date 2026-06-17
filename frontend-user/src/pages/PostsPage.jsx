@@ -41,6 +41,23 @@ export default function PostsPage() {
     setSearchQuery('');
   };
   
+  // Helper function to check if image is SVG
+  const isSvgImage = (url) => {
+    if (!url) return false;
+    return url.startsWith('data:image/svg+xml') || url.endsWith('.svg');
+  };
+  
+  // Helper function to extract SVG code from data URL
+  const getSvgCode = (url) => {
+    if (!url || !url.startsWith('data:image/svg+xml')) return '';
+    try {
+      const svgContent = decodeURIComponent(url.split(',')[1] || '');
+      return svgContent;
+    } catch (e) {
+      return '';
+    }
+  };
+  
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -109,15 +126,22 @@ export default function PostsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
             {filteredPosts.map(post => (
               <div key={post.id} className="group bg-[#0f1422] rounded-xl overflow-hidden border border-[#1e2a3a] hover:border-[#00d4ff] transition-all duration-300 hover:transform hover:-translate-y-1 flex flex-col">
-                {/* Image Section - Clickable */}
+                {/* Image Section - Clickable with SVG Support */}
                 <Link to={`/post/${post.id}`} className="block">
                   {post.image_url && (
                     <div className="overflow-hidden h-48">
-                      <img 
-                        src={post.image_url} 
-                        alt={post.title} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
+                      {isSvgImage(post.image_url) ? (
+                        <div 
+                          dangerouslySetInnerHTML={{ __html: getSvgCode(post.image_url) }}
+                          className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0f1422] to-[#0a0e1a]"
+                        />
+                      ) : (
+                        <img 
+                          src={post.image_url} 
+                          alt={post.title} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      )}
                     </div>
                   )}
                 </Link>
@@ -142,7 +166,7 @@ export default function PostsPage() {
                     {post.description}
                   </p>
                   
-                  {/* VISIBLE BUTTON - FIXED */}
+                  {/* VISIBLE BUTTON */}
                   <Link 
                     to={`/post/${post.id}`}
                     className="inline-flex items-center justify-center gap-2 w-full bg-gradient-to-r from-[#00d4ff] to-[#00b8e6] text-black font-bold px-4 py-2.5 rounded-lg hover:from-[#00b8e6] hover:to-[#0099cc] transition-all duration-300 text-sm shadow-lg hover:shadow-[#00d4ff]/20"

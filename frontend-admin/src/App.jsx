@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import PostsManager from './pages/PostsManager';
 import PostForm from './pages/PostForm';
 import EbooksManager from './pages/EbooksManager';
+import EbookForm from './pages/EbookForm'; // 👈 ADD THIS IMPORT
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -52,6 +53,9 @@ function App() {
           <Route path="/posts/new" element={<PostForm />} />
           <Route path="/posts/edit/:id" element={<PostForm />} />
           <Route path="/ebooks" element={<EbooksManager />} />
+          {/* 👇 ADD THESE TWO NEW ROUTES */}
+          <Route path="/ebooks/new" element={<EbookForm />} />
+          <Route path="/ebooks/edit/:id" element={<EbookForm />} />
         </Routes>
       </div>
     </BrowserRouter>

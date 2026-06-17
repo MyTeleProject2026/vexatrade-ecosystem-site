@@ -1,15 +1,15 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getPost, createPost, updatePost } from '../api';
+import { getEbook, createEbook, updateEbook } from '../api';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
-export default function PostForm() {
+export default function EbookForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  // Post creation mode: 'normal' or 'html'
-  const [postMode, setPostMode] = useState('normal'); // 'normal' or 'html'
+  // Ebook creation mode: 'normal' or 'html'
+  const [ebookMode, setEbookMode] = useState('normal'); // 'normal' or 'html'
   
   // Normal mode fields
   const [title, setTitle] = useState('');
@@ -20,6 +20,8 @@ export default function PostForm() {
   const [existingImage, setExistingImage] = useState('');
   const [svgCode, setSvgCode] = useState('');
   const [imagePreview, setImagePreview] = useState('');
+  const [pdfFile, setPdfFile] = useState(null);
+  const [existingPdf, setExistingPdf] = useState('');
   
   // HTML mode fields
   const [htmlTitle, setHtmlTitle] = useState('');
@@ -27,12 +29,13 @@ export default function PostForm() {
   const [htmlContentCode, setHtmlContentCode] = useState('');
   const [htmlImageCode, setHtmlImageCode] = useState('');
   const [htmlImagePreview, setHtmlImagePreview] = useState('');
+  const [svgError, setSvgError] = useState('');
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [svgError, setSvgError] = useState(''); // NEW: SVG error state
   const fileInputRef = useRef(null);
+  const pdfInputRef = useRef(null);
 
   // Quill modules configuration for normal mode
   const quillModules = {
@@ -52,7 +55,7 @@ export default function PostForm() {
     'link', 'image', 'video'
   ];
 
-  // NEW: Validate SVG code
+  // Validate SVG code
   const validateSvg = (code) => {
     try {
       // Check if it has SVG tags
@@ -85,35 +88,36 @@ export default function PostForm() {
     }
   };
 
-  // Load existing post for editing
+  // Load existing ebook for editing
   useEffect(() => {
     if (id) {
-      getPost(id).then(res => {
-        const post = res.data.data;
+      getEbook(id).then(res => {
+        const ebook = res.data.data;
         
-        // Detect if this is an HTML mode post
-        if (post.is_html_mode || (post.content && post.content.includes('<!DOCTYPE') || post.content.includes('<html'))) {
-          setPostMode('html');
-          setHtmlTitle(post.title);
-          setHtmlDescription(post.description || '');
-          setHtmlContentCode(post.content || '');
-          setHtmlImageCode(post.image_url || '');
-          setHtmlImagePreview(post.image_url || '');
+        // Detect if this is an HTML mode ebook
+        if (ebook.is_html_mode || (ebook.content && ebook.content.includes('<!DOCTYPE') || ebook.content.includes('<html'))) {
+          setEbookMode('html');
+          setHtmlTitle(ebook.title);
+          setHtmlDescription(ebook.description || '');
+          setHtmlContentCode(ebook.content || '');
+          setHtmlImageCode(ebook.image_url || '');
+          setHtmlImagePreview(ebook.image_url || '');
         } else {
-          setPostMode('normal');
-          setTitle(post.title);
-          setDescription(post.description || '');
-          setContent(post.content || '');
-          setExistingImage(post.image_url || '');
-          setImagePreview(post.image_url || '');
+          setEbookMode('normal');
+          setTitle(ebook.title);
+          setDescription(ebook.description || '');
+          setContent(ebook.content || '');
+          setExistingImage(ebook.image_url || '');
+          setImagePreview(ebook.image_url || '');
+          setExistingPdf(ebook.file_url || '');
           
-          if (post.image_url && post.image_url.startsWith('data:image/svg+xml')) {
+          if (ebook.image_url && ebook.image_url.startsWith('data:image/svg+xml')) {
             setImageType('svg');
-            setSvgCode(decodeURIComponent(post.image_url.split(',')[1] || ''));
+            setSvgCode(decodeURIComponent(ebook.image_url.split(',')[1] || ''));
           }
         }
       }).catch(err => {
-        setError('Failed to load post');
+        setError('Failed to load ebook');
       });
     }
   }, [id]);
@@ -131,6 +135,14 @@ export default function PostForm() {
     }
   };
 
+  // Handle normal mode PDF file upload
+  const handlePdfChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setPdfFile(file);
+    }
+  };
+
   // Handle normal mode SVG code input - FIXED
   const handleSvgChange = (e) => {
     const code = e.target.value;
@@ -141,8 +153,8 @@ export default function PostForm() {
       const validation = validateSvg(code);
       
       if (validation.valid) {
+        // Properly encode SVG for data URI
         try {
-          // Properly encode SVG for data URI
           const encodedSvg = encodeURIComponent(code)
             .replace(/'/g, '%27')
             .replace(/"/g, '%22')
@@ -212,8 +224,10 @@ export default function PostForm() {
     setImageFile(null);
     setSvgCode('');
     setImagePreview('');
+    setPdfFile(null);
     setSvgError('');
     if (fileInputRef.current) fileInputRef.current.value = '';
+    if (pdfInputRef.current) pdfInputRef.current.value = '';
   };
 
   const resetHtmlMode = () => {
@@ -232,10 +246,16 @@ export default function PostForm() {
     setSuccess('');
 
     try {
-      if (postMode === 'normal') {
+      if (ebookMode === 'normal') {
         // NORMAL MODE SUBMISSION
         if (!title.trim()) {
           setError('Title is required');
+          setLoading(false);
+          return;
+        }
+
+        if (!pdfFile && !id) {
+          setError('Please select a PDF file');
           setLoading(false);
           return;
         }
@@ -244,10 +264,11 @@ export default function PostForm() {
         formData.append('title', title);
         formData.append('description', description);
         formData.append('content', content);
+        formData.append('file_type', 'pdf');
         formData.append('is_html_mode', 'false');
 
         if (imageType === 'upload' && imageFile) {
-          formData.append('image', imageFile);
+          formData.append('cover', imageFile);
         } else if (imageType === 'svg' && svgCode.trim()) {
           // Validate SVG before sending
           const validation = validateSvg(svgCode);
@@ -264,20 +285,24 @@ export default function PostForm() {
           }
           
           const svgBlob = new Blob([cleanSvg], { type: 'image/svg+xml' });
-          const svgFile = new File([svgBlob], 'image.svg', { type: 'image/svg+xml' });
-          formData.append('image', svgFile);
+          const svgFile = new File([svgBlob], 'cover.svg', { type: 'image/svg+xml' });
+          formData.append('cover', svgFile);
+        }
+
+        if (pdfFile) {
+          formData.append('file', pdfFile);
         }
 
         if (id) {
-          await updatePost(id, formData);
-          setSuccess('Post updated successfully!');
+          await updateEbook(id, formData);
+          setSuccess('Ebook updated successfully!');
         } else {
-          await createPost(formData);
-          setSuccess('Post created successfully!');
+          await createEbook(formData);
+          setSuccess('Ebook created successfully!');
           resetNormalMode();
         }
       } 
-      else if (postMode === 'html') {
+      else if (ebookMode === 'html') {
         // HTML MODE SUBMISSION
         if (!htmlTitle.trim()) {
           setError('Title is required for HTML mode');
@@ -294,6 +319,8 @@ export default function PostForm() {
         const formData = new FormData();
         formData.append('title', htmlTitle);
         formData.append('description', htmlDescription);
+        formData.append('file_type', 'html');
+        formData.append('is_html_mode', 'true');
         
         // Wrap HTML content in a complete document structure
         let fullHtmlContent = htmlContentCode;
@@ -309,7 +336,7 @@ export default function PostForm() {
       line-height: 1.6;
       color: #e0e0e0;
       background-color: #0b0f1c;
-      max-width: 800px;
+      max-width: 900px;
       margin: 0 auto;
       padding: 20px;
     }
@@ -317,6 +344,10 @@ export default function PostForm() {
     a { color: #00d4ff; text-decoration: none; }
     a:hover { text-decoration: underline; }
     pre, code { background-color: #1e293b; padding: 2px 6px; border-radius: 4px; }
+    .chapter { border-bottom: 1px solid #2a3440; padding-bottom: 20px; margin-bottom: 20px; }
+    .toc { background: #0f1422; padding: 20px; border-radius: 12px; margin-bottom: 30px; }
+    .toc a { display: block; padding: 8px 0; color: #b0bedb; }
+    .toc a:hover { color: #00d4ff; }
   </style>
 </head>
 <body>
@@ -326,9 +357,13 @@ export default function PostForm() {
         }
         
         formData.append('content', fullHtmlContent);
-        formData.append('is_html_mode', 'true');
         
-        // Handle HTML image code
+        // Create HTML file from content
+        const htmlBlob = new Blob([fullHtmlContent], { type: 'text/html' });
+        const htmlFile = new File([htmlBlob], `${htmlTitle.replace(/[^a-z0-9]/gi, '_')}.html`, { type: 'text/html' });
+        formData.append('file', htmlFile);
+        
+        // Handle HTML image code for cover
         if (htmlImageCode.trim()) {
           if (htmlImageCode.includes('<svg')) {
             // Validate SVG
@@ -345,8 +380,8 @@ export default function PostForm() {
             }
             
             const svgBlob = new Blob([cleanSvg], { type: 'image/svg+xml' });
-            const svgFile = new File([svgBlob], 'image.svg', { type: 'image/svg+xml' });
-            formData.append('image', svgFile);
+            const svgFile = new File([svgBlob], 'cover.svg', { type: 'image/svg+xml' });
+            formData.append('cover', svgFile);
           } else if (htmlImageCode.startsWith('data:image')) {
             formData.append('image_url_data', htmlImageCode);
           } else {
@@ -355,22 +390,22 @@ export default function PostForm() {
         }
 
         if (id) {
-          await updatePost(id, formData);
-          setSuccess('HTML post updated successfully!');
+          await updateEbook(id, formData);
+          setSuccess('HTML ebook updated successfully!');
         } else {
-          await createPost(formData);
-          setSuccess('HTML post created successfully!');
+          await createEbook(formData);
+          setSuccess('HTML ebook created successfully!');
           resetHtmlMode();
         }
       }
 
       // Redirect after 2 seconds on success
       setTimeout(() => {
-        navigate('/posts');
+        navigate('/ebooks');
       }, 2000);
       
     } catch (err) {
-      setError('Failed to save post: ' + (err.response?.data?.message || err.message));
+      setError('Failed to save ebook: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -379,30 +414,30 @@ export default function PostForm() {
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-white">{id ? 'Edit Post' : 'Create New Post'}</h1>
+        <h1 className="text-2xl font-bold text-white">{id ? 'Edit Ebook' : 'Create New Ebook'}</h1>
         <div className="flex gap-3">
           <button
             type="button"
             onClick={() => {
-              setPostMode('normal');
+              setEbookMode('normal');
               resetHtmlMode();
             }}
             className={`px-4 py-2 rounded-lg transition ${
-              postMode === 'normal' 
+              ebookMode === 'normal' 
                 ? 'bg-[#00d4ff] text-black' 
                 : 'bg-[#0f1422] text-[#b0bedb] border border-[#2a3440] hover:border-[#00d4ff]'
             }`}
           >
-            📝 Normal Mode
+            📝 Normal Mode (PDF)
           </button>
           <button
             type="button"
             onClick={() => {
-              setPostMode('html');
+              setEbookMode('html');
               resetNormalMode();
             }}
             className={`px-4 py-2 rounded-lg transition ${
-              postMode === 'html' 
+              ebookMode === 'html' 
                 ? 'bg-[#00d4ff] text-black' 
                 : 'bg-[#0f1422] text-[#b0bedb] border border-[#2a3440] hover:border-[#00d4ff]'
             }`}
@@ -432,14 +467,14 @@ export default function PostForm() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* NORMAL MODE FORM */}
-        {postMode === 'normal' && (
+        {ebookMode === 'normal' && (
           <>
             {/* Title */}
             <div>
-              <label className="block text-sm font-medium text-[#b0bedb] mb-2">Post Title *</label>
+              <label className="block text-sm font-medium text-[#b0bedb] mb-2">Ebook Title *</label>
               <input
                 type="text"
-                placeholder="Enter post title"
+                placeholder="Enter ebook title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full bg-[#0f1422] border border-[#2a3440] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#00d4ff] text-lg"
@@ -459,9 +494,9 @@ export default function PostForm() {
               />
             </div>
 
-            {/* Image Selection */}
+            {/* Cover Image Selection */}
             <div>
-              <label className="block text-sm font-medium text-[#b0bedb] mb-3">Featured Image</label>
+              <label className="block text-sm font-medium text-[#b0bedb] mb-3">Cover Image</label>
               <div className="flex gap-4 mb-4">
                 <label className="flex items-center gap-2">
                   <input
@@ -550,9 +585,27 @@ export default function PostForm() {
               </div>
             )}
 
-            {/* Rich Text Editor */}
+            {/* PDF File Upload */}
             <div>
-              <label className="block text-sm font-medium text-[#b0bedb] mb-2">Post Content (Rich Text Editor)</label>
+              <label className="block text-sm font-medium text-[#b0bedb] mb-2">PDF File *</label>
+              <div className="bg-[#0f1422] p-4 rounded-lg border border-[#2a3440]">
+                <input
+                  ref={pdfInputRef}
+                  type="file"
+                  accept=".pdf"
+                  onChange={handlePdfChange}
+                  className="text-white w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#00d4ff] file:text-black hover:file:bg-[#00b8e6] cursor-pointer"
+                />
+                <p className="text-xs text-[#6c86a3] mt-2">Select a PDF file for users to download</p>
+                {existingPdf && !pdfFile && (
+                  <p className="text-xs text-[#00d4ff] mt-2">📄 Current PDF: {existingPdf.split('/').pop()}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Rich Text Editor for Ebook Description/Content */}
+            <div>
+              <label className="block text-sm font-medium text-[#b0bedb] mb-2">Ebook Content (Rich Text Editor)</label>
               <ReactQuill
                 theme="snow"
                 value={content}
@@ -560,7 +613,7 @@ export default function PostForm() {
                 modules={quillModules}
                 formats={quillFormats}
                 className="bg-white text-black rounded-lg"
-                placeholder="Write your post content here... Use toolbar for formatting, colors, backgrounds, images, videos..."
+                placeholder="Write your ebook content here... This will be displayed on the ebook detail page."
               />
               <p className="text-xs text-[#6c86a3] mt-2">✅ Supports: Bold, Italic, Colors, Backgrounds, Lists, Links, Images, Videos</p>
             </div>
@@ -568,14 +621,14 @@ export default function PostForm() {
         )}
 
         {/* HTML MODE FORM - Two Separate Code Boxes */}
-        {postMode === 'html' && (
+        {ebookMode === 'html' && (
           <>
             {/* HTML Mode Title */}
             <div>
-              <label className="block text-sm font-medium text-[#b0bedb] mb-2">Post Title *</label>
+              <label className="block text-sm font-medium text-[#b0bedb] mb-2">Ebook Title *</label>
               <input
                 type="text"
-                placeholder="Enter post title"
+                placeholder="Enter ebook title"
                 value={htmlTitle}
                 onChange={(e) => setHtmlTitle(e.target.value)}
                 className="w-full bg-[#0f1422] border border-[#2a3440] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#00d4ff] text-lg"
@@ -598,25 +651,48 @@ export default function PostForm() {
             {/* CODE BOX 1: HTML Content Code */}
             <div>
               <label className="block text-sm font-medium text-[#b0bedb] mb-2">
-                📝 Code Box 1: HTML Content Code *
+                📝 Code Box 1: HTML Ebook Content *
               </label>
               <div className="bg-[#0f1422] p-4 rounded-lg border border-[#2a3440]">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs text-[#6c86a3]">Write your HTML/CSS code for the post content</span>
+                  <span className="text-xs text-[#6c86a3]">Write your HTML/CSS code for the ebook content</span>
                   <button
                     type="button"
                     onClick={() => {
-                      const example = `<h1>Welcome to My Post</h1>
-<p>This is a paragraph with <strong>bold text</strong> and <em>italic text</em>.</p>
-<h2>Features</h2>
-<ul>
-  <li>Custom HTML/CSS styling</li>
-  <li>Embed videos and iframes</li>
-  <li>Create interactive content</li>
-</ul>
-<div style="background: linear-gradient(135deg, #00d4ff, #0033cc); padding: 20px; border-radius: 12px; text-align: center; color: white;">
-  <h3>Custom Styled Box</h3>
-  <p>You can add any HTML/CSS here!</p>
+                      const example = `<h1>Your Ebook Title</h1>
+
+<div class="toc">
+  <h2>Table of Contents</h2>
+  <a href="#chapter1">Chapter 1: Introduction</a>
+  <a href="#chapter2">Chapter 2: Getting Started</a>
+  <a href="#chapter3">Chapter 3: Advanced Topics</a>
+</div>
+
+<div class="chapter" id="chapter1">
+  <h2>Chapter 1: Introduction</h2>
+  <p>Welcome to this comprehensive guide. This chapter covers the fundamentals.</p>
+  <ul>
+    <li>Understanding the basics</li>
+    <li>Key concepts explained</li>
+    <li>Getting prepared</li>
+  </ul>
+  <div style="background: #0f1422; padding: 15px; border-radius: 8px; border-left: 4px solid #00d4ff; margin: 15px 0;">
+    <strong>💡 Key Takeaway:</strong> This is the most important concept to understand.
+  </div>
+</div>
+
+<div class="chapter" id="chapter2">
+  <h2>Chapter 2: Getting Started</h2>
+  <p>Now that you understand the basics, let's dive into practical steps.</p>
+  <ol>
+    <li>Step 1: Set up your environment</li>
+    <li>Step 2: Configure your settings</li>
+    <li>Step 3: Start your journey</li>
+  </ol>
+</div>
+
+<div style="text-align: center; padding: 30px; background: linear-gradient(135deg, #0f1422, #1a2332); border-radius: 12px; margin-top: 30px;">
+  <h3 style="color: #00d4ff;">🎉 Thank You for Reading!</h3>
 </div>`;
                       setHtmlContentCode(example);
                     }}
@@ -630,13 +706,15 @@ export default function PostForm() {
 <html>
 <head>
   <style>
-    body { font-family: Arial; padding: 20px; }
+    body { font-family: Arial; padding: 20px; background: #0b0f1c; color: #b0bedb; }
     h1 { color: #00d4ff; }
+    .chapter { margin-bottom: 30px; border-bottom: 1px solid #2a3440; padding-bottom: 20px; }
+    .toc { background: #0f1422; padding: 20px; border-radius: 12px; }
   </style>
 </head>
 <body>
-  <h1>Your HTML Content Here</h1>
-  <p>Write any HTML/CSS code for your post...</p>
+  <h1>Your Ebook Content Here</h1>
+  <p>Write your ebook HTML/CSS code...</p>
 </body>
 </html>`}
                   value={htmlContentCode}
@@ -646,33 +724,36 @@ export default function PostForm() {
                   required
                 />
                 <p className="text-xs text-[#6c86a3] mt-2">
-                  💡 You can write full HTML/CSS code. It will be displayed as-is on the user website.
-                  Supports: custom fonts, animations, responsive design, embedded videos, and more!
+                  💡 You can write full HTML/CSS code. It will be displayed as a complete ebook with chapters.
                 </p>
               </div>
             </div>
 
-            {/* CODE BOX 2: SVG/HTML Image Code - FIXED */}
+            {/* CODE BOX 2: SVG/HTML Image Code for Cover - FIXED */}
             <div>
               <label className="block text-sm font-medium text-[#b0bedb] mb-2">
-                🎨 Code Box 2: SVG / HTML Image Code
+                🎨 Code Box 2: SVG / HTML Cover Image Code
               </label>
               <div className="bg-[#0f1422] p-4 rounded-lg border border-[#2a3440]">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs text-[#6c86a3]">Create custom SVG or HTML image for the featured image</span>
+                  <span className="text-xs text-[#6c86a3]">Create custom SVG or HTML image for the ebook cover</span>
                   <button
                     type="button"
                     onClick={() => {
-                      const example = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" width="400" height="200">
+                      const example = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 250" width="400" height="250">
   <defs>
     <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:1" />
       <stop offset="100%" style="stop-color:#0033cc;stop-opacity:1" />
     </linearGradient>
   </defs>
-  <rect width="100%" height="100%" fill="url(#grad)" rx="8"/>
-  <text x="50%" y="45%" text-anchor="middle" fill="white" font-size="28" font-weight="bold">VexaTrade</text>
-  <text x="50%" y="65%" text-anchor="middle" fill="#e0e0e0" font-size="16">Blockchain Ecosystem</text>
+  <rect width="100%" height="100%" fill="url(#grad)" rx="12"/>
+  <circle cx="50" cy="50" r="80" fill="#ffffff" opacity="0.05"/>
+  <circle cx="350" cy="200" r="60" fill="#ffffff" opacity="0.05"/>
+  <text x="50%" y="40%" text-anchor="middle" fill="white" font-size="32" font-weight="bold">VexaTrade</text>
+  <text x="50%" y="55%" text-anchor="middle" fill="#e0e0e0" font-size="18">Blockchain Ecosystem</text>
+  <rect x="30%" y="65%" width="40%" height="3" rx="2" fill="white" opacity="0.3"/>
+  <text x="50%" y="78%" text-anchor="middle" fill="#b0bedb" font-size="12">📖 Educational Guide</text>
 </svg>`;
                       setHtmlImageCode(example);
                     }}
@@ -682,9 +763,9 @@ export default function PostForm() {
                   </button>
                 </div>
                 <textarea
-                  placeholder={`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" width="400" height="200">
+                  placeholder={`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 250" width="400" height="250">
   <rect width="100%" height="100%" fill="#00d4ff" rx="8"/>
-  <text x="50%" y="50%" text-anchor="middle" fill="white" font-size="24" font-weight="bold">Your SVG Image</text>
+  <text x="50%" y="50%" text-anchor="middle" fill="white" font-size="24" font-weight="bold">Your Ebook Cover</text>
 </svg>`}
                   value={htmlImageCode}
                   onChange={handleHtmlImageCodeChange}
@@ -700,7 +781,7 @@ export default function PostForm() {
             {/* HTML Mode Image Preview - FIXED */}
             {htmlImagePreview && (
               <div className="bg-[#0f1422] p-4 rounded-lg border border-[#00d4ff]/30">
-                <h3 className="text-sm font-medium text-[#b0bedb] mb-3">Image Preview</h3>
+                <h3 className="text-sm font-medium text-[#b0bedb] mb-3">Cover Image Preview</h3>
                 <div className="flex justify-center p-4 bg-[#131724] rounded-lg min-h-[100px]">
                   {htmlImagePreview.startsWith('data:image/svg+xml') ? (
                     <div 
@@ -739,22 +820,22 @@ export default function PostForm() {
             {/* HTML Content Preview */}
             {htmlContentCode && (
               <div className="bg-[#0f1422] p-4 rounded-lg border border-[#00d4ff]/30">
-                <h3 className="text-sm font-medium text-[#b0bedb] mb-3">Content Preview</h3>
+                <h3 className="text-sm font-medium text-[#b0bedb] mb-3">Ebook Content Preview</h3>
                 <div className="p-4 bg-[#131724] rounded-lg max-h-[400px] overflow-auto">
                   <div dangerouslySetInnerHTML={{ __html: htmlContentCode }} />
                 </div>
-                <p className="text-xs text-[#6c86a3] mt-2">⚠️ This is a visual preview. Actual display may vary on user website.</p>
+                <p className="text-xs text-[#6c86a3] mt-2">⚠️ This is a visual preview. Users will see the full ebook when viewed online.</p>
               </div>
             )}
 
             <div className="bg-blue-500/10 border border-blue-500/30 p-4 rounded-lg">
-              <h4 className="text-sm font-semibold text-[#00d4ff] mb-2">💡 HTML Mode Tips:</h4>
+              <h4 className="text-sm font-semibold text-[#00d4ff] mb-2">💡 HTML Ebook Tips:</h4>
               <ul className="text-xs text-[#b0bedb] space-y-1 list-disc list-inside">
-                <li>You can use any HTML/CSS code for complete design freedom</li>
+                <li>Create complete books with chapters, table of contents, and navigation</li>
                 <li>Add custom fonts, animations, and interactive elements</li>
                 <li>Embed YouTube videos, iframes, or external content</li>
                 <li>Create responsive layouts that work on all devices</li>
-                <li>Both code boxes work independently - content box for post body, image box for featured image</li>
+                <li>Both code boxes work independently - content box for ebook body, image box for cover</li>
               </ul>
             </div>
           </>
@@ -767,11 +848,11 @@ export default function PostForm() {
             disabled={loading}
             className="bg-[#00d4ff] text-black font-semibold px-8 py-2 rounded-full hover:bg-[#00b8e6] disabled:opacity-50 transition"
           >
-            {loading ? 'Saving...' : (id ? 'Update Post' : 'Publish Post')}
+            {loading ? 'Saving...' : (id ? 'Update Ebook' : 'Publish Ebook')}
           </button>
           <button
             type="button"
-            onClick={() => navigate('/posts')}
+            onClick={() => navigate('/ebooks')}
             className="border border-[#2a3440] px-6 py-2 rounded-full hover:bg-white/5 transition text-white"
           >
             Cancel
@@ -784,21 +865,21 @@ export default function PostForm() {
         <h3 className="text-sm font-semibold text-[#00d4ff] mb-2">📱 Mode Comparison</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-[#b0bedb]">
           <div className="border-r border-[#2a3440] pr-4">
-            <strong className="text-white">Normal Mode:</strong>
+            <strong className="text-white">Normal Mode (PDF):</strong>
             <ul className="mt-1 list-disc list-inside">
-              <li>WYSIWYG rich text editor</li>
-              <li>Upload images from your computer</li>
-              <li>Easy formatting like Word</li>
-              <li>Best for regular blog posts</li>
+              <li>Upload PDF files for download</li>
+              <li>Rich text editor for description</li>
+              <li>Upload cover images or use SVG</li>
+              <li>Best for downloadable PDF guides</li>
             </ul>
           </div>
           <div>
             <strong className="text-white">HTML Code Mode:</strong>
             <ul className="mt-1 list-disc list-inside">
               <li>Complete HTML/CSS control</li>
-              <li>Two separate code boxes (Content + Image)</li>
-              <li>Create custom SVG graphics</li>
-              <li>Best for advanced/custom designs</li>
+              <li>Two separate code boxes (Content + Cover)</li>
+              <li>Create interactive, multi-chapter ebooks</li>
+              <li>Best for online-readable guides</li>
             </ul>
           </div>
         </div>

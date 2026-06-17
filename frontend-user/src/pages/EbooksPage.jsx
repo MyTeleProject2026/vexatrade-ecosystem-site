@@ -8,7 +8,7 @@ export default function EbooksPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
-
+  
   useEffect(() => {
     getEbooks()
       .then(res => {
@@ -19,13 +19,13 @@ export default function EbooksPage() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
-
+  
   useEffect(() => {
     let results = ebooks;
     
     if (filterType !== 'all') {
-      results = results.filter(ebook => 
-        ebook.file_type === filterType || 
+      results = results.filter(ebook =>
+        ebook.file_type === filterType ||
         (filterType === 'html' && ebook.file_url?.endsWith('.html')) ||
         (filterType === 'pdf' && ebook.file_url?.endsWith('.pdf'))
       );
@@ -33,7 +33,7 @@ export default function EbooksPage() {
     
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      results = results.filter(ebook => 
+      results = results.filter(ebook =>
         ebook.title.toLowerCase().includes(query) ||
         (ebook.description && ebook.description.toLowerCase().includes(query))
       );
@@ -41,15 +41,32 @@ export default function EbooksPage() {
     
     setFilteredEbooks(results);
   }, [searchQuery, filterType, ebooks]);
-
+  
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
   };
-
+  
   const clearSearch = () => {
     setSearchQuery('');
   };
-
+  
+  // Helper function to check if image is SVG
+  const isSvgImage = (url) => {
+    if (!url) return false;
+    return url.startsWith('data:image/svg+xml') || url.endsWith('.svg');
+  };
+  
+  // Helper function to extract SVG code from data URL
+  const getSvgCode = (url) => {
+    if (!url || !url.startsWith('data:image/svg+xml')) return '';
+    try {
+      const svgContent = decodeURIComponent(url.split(',')[1] || '');
+      return svgContent;
+    } catch (e) {
+      return '';
+    }
+  };
+  
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -60,7 +77,7 @@ export default function EbooksPage() {
       </div>
     );
   }
-
+  
   return (
     <div className="min-h-screen bg-[#0b0f1c]">
       {/* Header */}
@@ -159,11 +176,22 @@ export default function EbooksPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
             {filteredEbooks.map(ebook => (
               <div key={ebook.id} className="group bg-[#0f1422] rounded-xl overflow-hidden border border-[#1e2a3a] hover:border-[#00d4ff] transition-all duration-300 hover:transform hover:-translate-y-1 flex flex-col">
-                {/* Cover Image - Clickable */}
+                {/* Cover Image - Clickable with SVG Support */}
                 <Link to={`/ebook/${ebook.id}`} className="block">
                   {ebook.cover_image_url ? (
                     <div className="overflow-hidden h-48">
-                      <img src={ebook.cover_image_url} alt={ebook.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      {isSvgImage(ebook.cover_image_url) ? (
+                        <div 
+                          dangerouslySetInnerHTML={{ __html: getSvgCode(ebook.cover_image_url) }}
+                          className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0f1422] to-[#0a0e1a]"
+                        />
+                      ) : (
+                        <img 
+                          src={ebook.cover_image_url} 
+                          alt={ebook.title} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      )}
                     </div>
                   ) : (
                     <div className="h-48 bg-gradient-to-br from-[#0f1422] to-[#0a0e1a] flex items-center justify-center">
@@ -192,7 +220,7 @@ export default function EbooksPage() {
                     {ebook.description || 'No description available'}
                   </p>
                   
-                  {/* VISIBLE BUTTON - FIXED */}
+                  {/* VISIBLE BUTTON */}
                   <Link 
                     to={`/ebook/${ebook.id}`}
                     className="inline-flex items-center justify-center gap-2 w-full bg-gradient-to-r from-[#00d4ff] to-[#00b8e6] text-black font-bold px-4 py-2.5 rounded-lg hover:from-[#00b8e6] hover:to-[#0099cc] transition-all duration-300 text-sm shadow-lg hover:shadow-[#00d4ff]/20"
