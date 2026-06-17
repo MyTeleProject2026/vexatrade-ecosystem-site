@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getEbooks } from '../api';
 
 export default function EbooksPage() {
+  const navigate = useNavigate();
   const [ebooks, setEbooks] = useState([]);
   const [filteredEbooks, setFilteredEbooks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -80,9 +81,19 @@ export default function EbooksPage() {
   
   return (
     <div className="min-h-screen bg-[#0b0f1c]">
+      {/* ✅ Back to Home Button */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+        <button
+          onClick={() => navigate('/')}
+          className="inline-flex items-center gap-2 text-[#b0bedb] hover:text-[#00d4ff] transition text-sm"
+        >
+          ← Back to Home
+        </button>
+      </div>
+
       {/* Header */}
       <div className="bg-gradient-to-r from-[#0a0e1a] to-[#0f172a] border-b border-[#00d4ff]/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Ebooks & Guides Library</h1>
           <p className="text-[#b0bedb] text-sm sm:text-base">Free educational resources about blockchain, trading, and the VexaTrade Ecosystem</p>
         </div>
@@ -92,7 +103,6 @@ export default function EbooksPage() {
       <div className="sticky top-16 z-40 bg-[#0b0f1c]/95 backdrop-blur-sm border-b border-[#1e2a3a] py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row gap-4">
-            {/* Search Input */}
             <div className="relative flex-1">
               <input
                 type="text"
@@ -108,7 +118,6 @@ export default function EbooksPage() {
               )}
             </div>
             
-            {/* Filter Buttons */}
             <div className="flex gap-2">
               <button
                 onClick={() => setFilterType('all')}
@@ -176,7 +185,6 @@ export default function EbooksPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
             {filteredEbooks.map(ebook => (
               <div key={ebook.id} className="group bg-[#0f1422] rounded-xl overflow-hidden border border-[#1e2a3a] hover:border-[#00d4ff] transition-all duration-300 hover:transform hover:-translate-y-1 flex flex-col">
-                {/* Cover Image - Clickable */}
                 <Link to={`/ebook/${ebook.id}`} className="block">
                   {ebook.cover_image_url ? (
                     <div className="overflow-hidden h-48">
@@ -201,26 +209,22 @@ export default function EbooksPage() {
                 </Link>
                 
                 <div className="p-4 flex flex-col flex-grow">
-                  {/* Type Badge */}
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-xs px-2 py-0.5 rounded-full bg-[#00d4ff]/10 text-[#00d4ff]">
                       {ebook.file_type === 'html' || ebook.file_url?.endsWith('.html') ? '📘 HTML Ebook' : '📕 PDF Document'}
                     </span>
                   </div>
                   
-                  {/* Title - Clickable */}
                   <Link to={`/ebook/${ebook.id}`} className="block">
                     <h3 className="font-semibold text-white mb-2 line-clamp-2 text-base hover:text-[#00d4ff] transition">
                       {ebook.title}
                     </h3>
                   </Link>
                   
-                  {/* Description */}
                   <p className="text-sm text-[#b0bedb] line-clamp-2 mb-4 flex-grow">
                     {ebook.description || 'No description available'}
                   </p>
                   
-                  {/* ✅ CHANGED: "Read Ebook" Button - Visible and Clickable */}
                   <Link 
                     to={`/ebook/${ebook.id}`}
                     className="inline-flex items-center justify-center gap-2 w-full bg-gradient-to-r from-[#00d4ff] to-[#00b8e6] text-black font-bold px-4 py-2.5 rounded-lg hover:from-[#00b8e6] hover:to-[#0099cc] transition-all duration-300 text-sm shadow-lg hover:shadow-[#00d4ff]/20"
@@ -236,4 +240,4 @@ export default function EbooksPage() {
       </div>
     </div>
   );
-}
+} 

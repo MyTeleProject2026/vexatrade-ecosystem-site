@@ -64,12 +64,22 @@ export default function PostDetail() {
   
   return (
     <article className="max-w-4xl mx-auto px-4 py-8">
-      <button
-        onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-2 text-[#b0bedb] hover:text-[#00d4ff] transition mb-6"
-      >
-        ← Back
-      </button>
+      {/* ✅ Back Button - Goes to Home */}
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        <button
+          onClick={() => navigate('/')}
+          className="inline-flex items-center gap-2 text-[#b0bedb] hover:text-[#00d4ff] transition text-sm"
+        >
+          ← Back to Home
+        </button>
+        <span className="text-[#2a3440]">|</span>
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-2 text-[#b0bedb] hover:text-[#00d4ff] transition text-sm"
+        >
+          ← Back
+        </button>
+      </div>
 
       {post.image_url && (
         <div className="rounded-2xl overflow-hidden mb-8">

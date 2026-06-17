@@ -104,18 +104,26 @@ export default function EbookDetail() {
     );
   }
   
-  // ✅ CHECK: If ebook is HTML mode with content, display it directly like a post
   const isHtmlEbook = ebook.file_type === 'html' || ebook.is_html_mode;
   
   return (
     <article className="max-w-4xl mx-auto px-4 py-8">
-      {/* Back Button */}
-      <button
-        onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-2 text-[#b0bedb] hover:text-[#00d4ff] transition mb-6"
-      >
-        ← Back to Library
-      </button>
+      {/* ✅ Back Button - Goes to Home */}
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        <button
+          onClick={() => navigate('/')}
+          className="inline-flex items-center gap-2 text-[#b0bedb] hover:text-[#00d4ff] transition text-sm"
+        >
+          ← Back to Home
+        </button>
+        <span className="text-[#2a3440]">|</span>
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-2 text-[#b0bedb] hover:text-[#00d4ff] transition text-sm"
+        >
+          ← Back
+        </button>
+      </div>
 
       {/* Cover Image */}
       {ebook.cover_image_url && (
@@ -145,9 +153,8 @@ export default function EbookDetail() {
         </span>
       </div>
 
-      {/* ✅ Ebook Content - Displayed Directly Like Post Content */}
+      {/* Ebook Content */}
       {isHtmlEbook && ebook.content ? (
-        // HTML Ebook - Show content directly on page
         <div 
           className="prose prose-invert max-w-none 
             prose-headings:text-white prose-headings:font-semibold
@@ -164,7 +171,6 @@ export default function EbookDetail() {
           dangerouslySetInnerHTML={{ __html: ebook.content }}
         />
       ) : ebook.file_url && ebook.file_url.endsWith('.pdf') ? (
-        // ✅ PDF Ebook - Show PDF viewer or download link
         <div className="bg-[#0f1422] rounded-xl p-8 text-center border border-[#2a3440]">
           <div className="text-6xl mb-4">📕</div>
           <h3 className="text-xl font-semibold text-white mb-2">PDF Document</h3>
@@ -190,7 +196,6 @@ export default function EbookDetail() {
           </div>
         </div>
       ) : (
-        // ✅ Fallback - Show description and download option
         <div className="bg-[#0f1422] rounded-xl p-8 text-center border border-[#2a3440]">
           <div className="text-6xl mb-4">📄</div>
           <p className="text-[#b0bedb] mb-6">{ebook.description || 'No content available.'}</p>
