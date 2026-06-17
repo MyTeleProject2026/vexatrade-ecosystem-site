@@ -31,7 +31,7 @@ export default function PostForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [svgError, setSvgError] = useState(''); // NEW: SVG error state
+  const [svgError, setSvgError] = useState('');
   const fileInputRef = useRef(null);
 
   // Quill modules configuration for normal mode
@@ -52,33 +52,34 @@ export default function PostForm() {
     'link', 'image', 'video'
   ];
 
-  // NEW: Validate SVG code
+  // ✅ ENHANCED SVG validation with HTML detection
   const validateSvg = (code) => {
+    if (!code || typeof code !== 'string') return { valid: false, error: 'No code provided' };
+    const trimmed = code.trim();
+    if (!trimmed) return { valid: false, error: 'Empty code' };
+
+    // Check for HTML content
+    if (trimmed.includes('<!DOCTYPE') || trimmed.includes('<html') || trimmed.includes('<head') || trimmed.includes('<meta')) {
+      return { valid: false, error: '⚠️ HTML content detected – please use SVG only for images' };
+    }
+
+    if (!trimmed.includes('<svg')) {
+      return { valid: false, error: 'Missing <svg> tag' };
+    }
+    if (!trimmed.includes('</svg>')) {
+      return { valid: false, error: 'Missing closing </svg> tag' };
+    }
+    if (!trimmed.includes('xmlns')) {
+      return { valid: false, error: 'Missing xmlns attribute (add xmlns="http://www.w3.org/2000/svg")' };
+    }
+
     try {
-      // Check if it has SVG tags
-      if (!code.includes('<svg')) {
-        return { valid: false, error: 'Missing <svg> tag' };
-      }
-      
-      // Check for closing svg tag
-      if (!code.includes('</svg>')) {
-        return { valid: false, error: 'Missing closing </svg> tag' };
-      }
-      
-      // Check for xmlns
-      if (!code.includes('xmlns')) {
-        return { valid: false, error: 'Missing xmlns attribute' };
-      }
-      
-      // Parse SVG to check for errors
       const parser = new DOMParser();
-      const doc = parser.parseFromString(code, 'image/svg+xml');
+      const doc = parser.parseFromString(trimmed, 'image/svg+xml');
       const parserError = doc.querySelector('parsererror');
-      
       if (parserError) {
         return { valid: false, error: parserError.textContent };
       }
-      
       return { valid: true, error: null };
     } catch (e) {
       return { valid: false, error: e.message };
@@ -131,7 +132,7 @@ export default function PostForm() {
     }
   };
 
-  // Handle normal mode SVG code input - FIXED
+  // Handle normal mode SVG code input - with validation
   const handleSvgChange = (e) => {
     const code = e.target.value;
     setSvgCode(code);
@@ -139,17 +140,14 @@ export default function PostForm() {
     
     if (code.trim()) {
       const validation = validateSvg(code);
-      
       if (validation.valid) {
         try {
-          // Properly encode SVG for data URI
           const encodedSvg = encodeURIComponent(code)
             .replace(/'/g, '%27')
             .replace(/"/g, '%22')
             .replace(/#/g, '%23');
           const previewUrl = `data:image/svg+xml,${encodedSvg}`;
           setImagePreview(previewUrl);
-          setSvgError('');
         } catch (error) {
           setSvgError('Error encoding SVG: ' + error.message);
           setImagePreview('');
@@ -163,27 +161,23 @@ export default function PostForm() {
     }
   };
 
-  // Handle HTML mode image code preview - FIXED
+  // Handle HTML mode image code preview - with validation
   const handleHtmlImageCodeChange = (e) => {
     const code = e.target.value;
     setHtmlImageCode(code);
     setSvgError('');
     
-    // Create preview for SVG or HTML image
     if (code.trim()) {
       if (code.includes('<svg')) {
         const validation = validateSvg(code);
-        
         if (validation.valid) {
           try {
-            // Properly encode SVG for data URI
             const encodedSvg = encodeURIComponent(code)
               .replace(/'/g, '%27')
               .replace(/"/g, '%22')
               .replace(/#/g, '%23');
             const previewUrl = `data:image/svg+xml,${encodedSvg}`;
             setHtmlImagePreview(previewUrl);
-            setSvgError('');
           } catch (error) {
             setSvgError('Error encoding SVG: ' + error.message);
             setHtmlImagePreview('');
@@ -257,7 +251,6 @@ export default function PostForm() {
             return;
           }
           
-          // Clean SVG code
           let cleanSvg = svgCode.trim();
           if (!cleanSvg.includes('xmlns')) {
             cleanSvg = cleanSvg.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
@@ -520,12 +513,16 @@ export default function PostForm() {
                     rows={8}
                     className="w-full bg-[#131724] border border-[#2a3440] rounded-lg px-4 py-3 text-white font-mono text-sm focus:outline-none focus:border-[#00d4ff]"
                   />
-                  <p className="text-xs text-[#6c86a3] mt-2">Paste valid SVG code. Preview will show below.</p>
+                  <div className="mt-2 p-2 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                    <p className="text-xs text-blue-300">
+                      💡 <strong>Note:</strong> Paste only SVG code – not HTML.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Image Preview - FIXED */}
+            {/* Image Preview */}
             {imagePreview && (
               <div className="bg-[#0f1422] p-4 rounded-lg border border-[#00d4ff]/30">
                 <h3 className="text-sm font-medium text-[#b0bedb] mb-3">Image Preview</h3>
@@ -655,11 +652,13 @@ export default function PostForm() {
             {/* CODE BOX 2: SVG/HTML Image Code - FIXED */}
             <div>
               <label className="block text-sm font-medium text-[#b0bedb] mb-2">
-                🎨 Code Box 2: SVG / HTML Image Code
+                🎨 Code Box 2: SVG Image Code (Optional)
               </label>
               <div className="bg-[#0f1422] p-4 rounded-lg border border-[#2a3440]">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs text-[#6c86a3]">Create custom SVG or HTML image for the featured image</span>
+                  <span className="text-xs text-[#6c86a3]">
+                    <span className="text-yellow-300">⚠️ SVG ONLY</span> – Paste SVG code for the featured image.
+                  </span>
                   <button
                     type="button"
                     onClick={() => {
@@ -691,13 +690,15 @@ export default function PostForm() {
                   rows={12}
                   className="w-full bg-[#131724] border border-[#2a3440] rounded-lg px-4 py-3 text-white font-mono text-sm focus:outline-none focus:border-[#00d4ff]"
                 />
-                <p className="text-xs text-[#6c86a3] mt-2">
-                  💡 Paste SVG code (with xmlns attribute) or any HTML that renders an image.
-                </p>
+                <div className="mt-2 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                  <p className="text-xs text-yellow-300">
+                    ⚠️ <strong>IMPORTANT:</strong> This field is for <strong>SVG code only</strong> (vector graphics).
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* HTML Mode Image Preview - FIXED */}
+            {/* HTML Mode Image Preview */}
             {htmlImagePreview && (
               <div className="bg-[#0f1422] p-4 rounded-lg border border-[#00d4ff]/30">
                 <h3 className="text-sm font-medium text-[#b0bedb] mb-3">Image Preview</h3>

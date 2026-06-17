@@ -36,25 +36,28 @@ const upload = multer({
   fileFilter: fileFilter
 });
 
-// Helper: Validate and clean SVG
+// ✅ Same SVG validation as ebook.js
 const validateAndCleanSvg = (svgCode) => {
-  if (!svgCode || !svgCode.trim()) return null;
+  if (!svgCode || typeof svgCode !== 'string') return null;
+  const trimmed = svgCode.trim();
+  if (!trimmed) return null;
   
-  let cleanSvg = svgCode.trim();
+  if (trimmed.includes('<!DOCTYPE') || trimmed.includes('<html') || trimmed.includes('<head')) {
+    return { valid: false, error: 'HTML detected – use SVG only for images' };
+  }
   
+  if (!trimmed.includes('<svg') || !trimmed.includes('</svg>')) {
+    return { valid: false, error: 'Invalid SVG: missing <svg> or </svg>' };
+  }
+  
+  let cleanSvg = trimmed;
   if (!cleanSvg.includes('xmlns')) {
     cleanSvg = cleanSvg.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
   }
-  
   if (!cleanSvg.includes('viewBox')) {
     cleanSvg = cleanSvg.replace('<svg', '<svg viewBox="0 0 400 200"');
   }
-  
-  if (!cleanSvg.includes('</svg>')) {
-    return null;
-  }
-  
-  return cleanSvg;
+  return { valid: true, svg: cleanSvg };
 };
 
 // Get all posts (user)
@@ -67,7 +70,7 @@ router.get('/', verifyUserToken, async (req, res) => {
     const baseUrl = process.env.BASE_URL || 'https://vexatrade-ecosystem-api.onrender.com';
     const posts = rows.map(post => ({
       ...post,
-      image_url: post.image_url ? `${baseUrl}${post.image_url}` : null
+      image_url: post.image_url ? (post.image_url.startsWith('data:') ? post.image_url : `${baseUrl}${post.image_url}`) : null
     }));
     
     res.json({ success: true, data: posts });
@@ -89,7 +92,7 @@ router.get('/:id', verifyUserToken, async (req, res) => {
     const baseUrl = process.env.BASE_URL || 'https://vexatrade-ecosystem-api.onrender.com';
     const post = {
       ...rows[0],
-      image_url: rows[0].image_url ? `${baseUrl}${rows[0].image_url}` : null
+      image_url: rows[0].image_url ? (rows[0].image_url.startsWith('data:') ? rows[0].image_url : `${baseUrl}${rows[0].image_url}`) : null
     };
     
     res.json({ success: true, data: post });
@@ -99,7 +102,7 @@ router.get('/:id', verifyUserToken, async (req, res) => {
   }
 });
 
-// Create post (admin)
+// Create post (admin) - FIXED SVG handling
 router.post('/', verifyAdminToken, upload.single('image'), async (req, res) => {
   const { title, description, content, is_html_mode, image_url_data, image_code } = req.body;
   
@@ -113,14 +116,18 @@ router.post('/', verifyAdminToken, upload.single('image'), async (req, res) => {
     if (req.file) {
       image_url = `/uploads/posts/${req.file.filename}`;
     } else if (image_code && image_code.trim()) {
-      let cleanSvg = validateAndCleanSvg(image_code);
-      if (cleanSvg) {
+      const validation = validateAndCleanSvg(image_code);
+      if (validation && validation.valid) {
+        const cleanSvg = validation.svg;
         const svgFileName = `post-${Date.now()}.svg`;
         const svgPath = path.join(__dirname, '../../uploads/posts/', svgFileName);
         fs.writeFileSync(svgPath, cleanSvg, 'utf8');
         image_url = `/uploads/posts/${svgFileName}`;
       } else {
-        image_url = image_code;
+        return res.status(400).json({
+          success: false,
+          message: validation ? validation.error : 'Invalid SVG code'
+        });
       }
     } else if (image_url_data && image_url_data.startsWith('data:image')) {
       image_url = image_url_data;
@@ -144,7 +151,7 @@ router.post('/', verifyAdminToken, upload.single('image'), async (req, res) => {
   }
 });
 
-// Update post (admin)
+// Update post (admin) - FIXED SVG handling
 router.put('/:id', verifyAdminToken, upload.single('image'), async (req, res) => {
   const { id } = req.params;
   const { title, description, content, existing_image_url, is_html_mode, image_url_data, image_code } = req.body;
@@ -166,21 +173,24 @@ router.put('/:id', verifyAdminToken, upload.single('image'), async (req, res) =>
       }
       image_url = `/uploads/posts/${req.file.filename}`;
     } else if (image_code && image_code.trim()) {
-      if (existing[0].image_url && !existing[0].image_url.startsWith('data:') && !existing[0].image_url.includes('data:')) {
-        const oldImagePath = path.join(__dirname, '../..', existing[0].image_url);
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
+      const validation = validateAndCleanSvg(image_code);
+      if (validation && validation.valid) {
+        const cleanSvg = validation.svg;
+        if (existing[0].image_url && !existing[0].image_url.startsWith('data:') && !existing[0].image_url.includes('data:')) {
+          const oldImagePath = path.join(__dirname, '../..', existing[0].image_url);
+          if (fs.existsSync(oldImagePath)) {
+            fs.unlinkSync(oldImagePath);
+          }
         }
-      }
-      
-      let cleanSvg = validateAndCleanSvg(image_code);
-      if (cleanSvg) {
         const svgFileName = `post-${Date.now()}.svg`;
         const svgPath = path.join(__dirname, '../../uploads/posts/', svgFileName);
         fs.writeFileSync(svgPath, cleanSvg, 'utf8');
         image_url = `/uploads/posts/${svgFileName}`;
       } else {
-        image_url = image_code;
+        return res.status(400).json({
+          success: false,
+          message: validation ? validation.error : 'Invalid SVG code'
+        });
       }
     } else if (image_url_data && image_url_data.startsWith('data:image')) {
       image_url = image_url_data;
