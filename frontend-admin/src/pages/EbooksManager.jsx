@@ -38,6 +38,7 @@ export default function EbooksManager() {
     }
   };
   
+  // ✅ FIXED: View ebook – uses view endpoint with admin token as query param
   const handleViewEbook = (ebook) => {
     try {
       const token = localStorage.getItem('adminToken');
@@ -45,18 +46,36 @@ export default function EbooksManager() {
         alert('Please login as admin first');
         return;
       }
-      // Use the user view endpoint with admin token as query param
       const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://vexatrade-ecosystem-api.onrender.com';
+      // Open the view endpoint with token as query param
+      window.open(`${apiUrl}/api/ebooks/view/${ebook.id}?token=${encodeURIComponent(token)}`, '_blank');
+    } catch (err) {
+      console.error('View error:', err);
+      alert('Failed to view ebook');
+    }
+  };
+  
+  // ✅ FIXED: Download ebook – uses download API endpoint for HTML ebooks
+  const handleDownloadEbook = (ebook) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        alert('Please login as admin first');
+        return;
+      }
       if (ebook.file_type === 'html' || (ebook.file_url && ebook.file_url.endsWith('.html'))) {
-        window.open(`${apiUrl}/api/ebooks/view/${ebook.id}?token=${encodeURIComponent(token)}`, '_blank');
+        // For HTML ebooks, use the download API endpoint
+        const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://vexatrade-ecosystem-api.onrender.com';
+        window.open(`${apiUrl}/api/ebooks/download/${ebook.id}?token=${encodeURIComponent(token)}`, '_blank');
       } else if (ebook.file_url) {
+        // For PDF, open the file URL directly
         window.open(ebook.file_url, '_blank');
       } else {
         alert('No file URL available');
       }
     } catch (err) {
-      console.error('View error:', err);
-      alert('Failed to view ebook');
+      console.error('Download error:', err);
+      alert('Failed to download ebook');
     }
   };
   
@@ -93,7 +112,6 @@ export default function EbooksManager() {
           />
         );
       }
-      // If it's a .svg file, use img tag
       return (
         <div className="w-12 h-12 rounded overflow-hidden bg-[#0a0e1a] flex-shrink-0">
           <img src={url} alt={ebook.title} className="w-full h-full object-contain" />
@@ -109,6 +127,7 @@ export default function EbooksManager() {
           className="w-full h-full object-cover"
           onError={(e) => {
             e.target.style.display = 'none';
+            e.target.parentElement.innerHTML = '<span class="text-2xl">📘</span>';
           }}
         />
       </div>
@@ -181,9 +200,7 @@ export default function EbooksManager() {
                 <div className="flex gap-3 flex-wrap">
                   <Link to={`/ebooks/edit/${ebook.id}`} className="text-[#00d4ff] hover:underline text-sm">Edit</Link>
                   <button onClick={() => handleViewEbook(ebook)} className="text-[#00d4ff] hover:underline text-sm">View</button>
-                  {ebook.file_url && (
-                    <a href={ebook.file_url} download target="_blank" rel="noopener noreferrer" className="text-[#00d4ff] hover:underline text-sm">Download</a>
-                  )}
+                  <button onClick={() => handleDownloadEbook(ebook)} className="text-[#00d4ff] hover:underline text-sm">Download</button>
                   <button onClick={() => handleDelete(ebook.id)} className="text-red-400 hover:underline text-sm">Delete</button>
                 </div>
               </div>
