@@ -1,25 +1,14 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const pool = require('../db');
 const { verifyAdminToken, verifyUserToken } = require('../middleware/auth');
+const cloudinary = require('../utils/cloudinary');
+const streamifier = require('streamifier');
 const router = express.Router();
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../uploads/ebooks');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const unique = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, unique + path.extname(file.originalname));
-  }
-});
+// Use memory storage (no local files)
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   const allowedTypes = ['application/pdf', 'text/html', 'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
@@ -36,12 +25,44 @@ const upload = multer({
   fileFilter: fileFilter
 });
 
-// ✅ SVG validation
+// Helper: upload a buffer to Cloudinary
+const uploadToCloudinary = (buffer, folder, publicId = null) => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: `vexatrade_ecosystem/${folder}`,
+        resource_type: 'auto',
+        public_id: publicId || undefined,
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result.secure_url);
+      }
+    );
+    streamifier.createReadStream(buffer).pipe(uploadStream);
+  });
+};
+
+// Helper: delete a file from Cloudinary by public_id
+const deleteFromCloudinary = (publicId) => {
+  return cloudinary.uploader.destroy(publicId);
+};
+
+// Helper: extract public_id from Cloudinary URL
+const getPublicIdFromUrl = (url) => {
+  if (!url) return null;
+  const parts = url.split('/');
+  const uploadIndex = parts.indexOf('upload');
+  if (uploadIndex === -1) return null;
+  const pathSegments = parts.slice(uploadIndex + 2); // skip 'upload' and version
+  return pathSegments.join('/').split('.')[0]; // remove extension
+};
+
+// SVG validation (unchanged)
 const validateAndCleanSvg = (svgCode) => {
   if (!svgCode || typeof svgCode !== 'string') return null;
   const trimmed = svgCode.trim();
   if (!trimmed) return null;
-
   if (trimmed.includes('<!DOCTYPE') || trimmed.includes('<html') || trimmed.includes('<head')) {
     return { valid: false, error: 'HTML detected – use SVG only for images' };
   }
@@ -58,7 +79,7 @@ const validateAndCleanSvg = (svgCode) => {
   return { valid: true, svg: cleanSvg };
 };
 
-// Get all ebooks (user)
+// GET all ebooks (user)
 router.get('/', verifyUserToken, async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -66,22 +87,15 @@ router.get('/', verifyUserToken, async (req, res) => {
       FROM ebooks 
       ORDER BY created_at DESC
     `);
-    
-    const baseUrl = process.env.BASE_URL || 'https://vexatrade-ecosystem-api.onrender.com';
-    const ebooks = rows.map(ebook => ({
-      ...ebook,
-      file_url: ebook.file_url ? `${baseUrl}${ebook.file_url}` : null,
-      cover_image_url: ebook.cover_image_url ? (ebook.cover_image_url.startsWith('data:') ? ebook.cover_image_url : `${baseUrl}${ebook.cover_image_url}`) : null
-    }));
-    
-    res.json({ success: true, data: ebooks });
+    // No need to prepend baseUrl – Cloudinary URLs are absolute
+    res.json({ success: true, data: rows });
   } catch (err) {
     console.error('Error fetching ebooks:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// Get single ebook (user + admin)
+// GET single ebook
 router.get('/:id', verifyUserToken, async (req, res) => {
   const { id } = req.params;
   try {
@@ -90,56 +104,39 @@ router.get('/:id', verifyUserToken, async (req, res) => {
       FROM ebooks 
       WHERE id = ?
     `, [id]);
-    
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Ebook not found' });
     }
-    
-    const baseUrl = process.env.BASE_URL || 'https://vexatrade-ecosystem-api.onrender.com';
-    const ebook = {
-      ...rows[0],
-      file_url: rows[0].file_url ? `${baseUrl}${rows[0].file_url}` : null,
-      cover_image_url: rows[0].cover_image_url ? (rows[0].cover_image_url.startsWith('data:') ? rows[0].cover_image_url : `${baseUrl}${rows[0].cover_image_url}`) : null
-    };
-    
-    res.json({ success: true, data: ebook });
+    res.json({ success: true, data: rows[0] });
   } catch (err) {
     console.error('Error fetching ebook:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// ✅ FIXED: View HTML ebook (accepts token via query param for admin preview)
+// View HTML ebook (unchanged)
 router.get('/view/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const token = req.query.token || req.headers.authorization?.split(' ')[1];
-    
     if (!token) {
       return res.status(401).send('<h1>Authentication required</h1>');
     }
-
-    // Verify token (try both user and admin)
     let decoded;
     try {
       decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
     } catch (err) {
       return res.status(401).send('<h1>Invalid or expired token</h1>');
     }
-
-    // Allow access if token is valid (user or admin)
     const [rows] = await pool.query(`
       SELECT content, file_type, title 
       FROM ebooks 
       WHERE id = ? AND file_type = 'html'
     `, [id]);
-    
     if (rows.length === 0) {
       return res.status(404).send('<h1>Ebook not found</h1>');
     }
-    
     const ebook = rows[0];
-    
     if (ebook.content) {
       let html = ebook.content;
       if (!html.includes('<!DOCTYPE') && !html.includes('<html')) {
@@ -179,7 +176,6 @@ router.get('/view/:id', async (req, res) => {
       }
       return res.send(html);
     }
-    
     res.status(404).send('<h1>Ebook content not available</h1>');
   } catch (err) {
     console.error('Error viewing ebook:', err);
@@ -187,66 +183,60 @@ router.get('/view/:id', async (req, res) => {
   }
 });
 
-// Create ebook (admin)
+// CREATE ebook – upload to Cloudinary
 router.post('/', verifyAdminToken, upload.fields([
   { name: 'file', maxCount: 1 },
   { name: 'cover', maxCount: 1 }
 ]), async (req, res) => {
   try {
     const { title, description, content, file_type, is_html_mode, image_url_data, image_code } = req.body;
-    
     if (!title) {
       return res.status(400).json({ success: false, message: 'Title is required' });
     }
-    
     if (!req.files || !req.files.file) {
       return res.status(400).json({ success: false, message: 'File is required' });
     }
-    
+
     const file = req.files.file[0];
     const coverFile = req.files.cover ? req.files.cover[0] : null;
-    
+
     let finalFileType = file_type || 'pdf';
     let finalIsHtmlMode = is_html_mode === 'true' || is_html_mode === true;
-    
     if (content && (content.includes('<!DOCTYPE') || content.includes('<html'))) {
       finalIsHtmlMode = true;
       finalFileType = 'html';
     }
-    
+
+    // Upload main file to Cloudinary
+    let fileUrl = await uploadToCloudinary(file.buffer, 'ebooks', `${Date.now()}-${file.originalname}`);
+
+    // Upload cover
     let coverImageUrl = null;
-    
     if (coverFile) {
-      coverImageUrl = `/uploads/ebooks/${coverFile.filename}`;
+      coverImageUrl = await uploadToCloudinary(coverFile.buffer, 'ebooks/covers', `${Date.now()}-cover-${coverFile.originalname}`);
     } else if (image_code && image_code.trim()) {
       const validation = validateAndCleanSvg(image_code);
       if (validation && validation.valid) {
-        const cleanSvg = validation.svg;
-        const svgFileName = `cover-${Date.now()}.svg`;
-        const svgPath = path.join(__dirname, '../../uploads/ebooks/', svgFileName);
-        fs.writeFileSync(svgPath, cleanSvg, 'utf8');
-        coverImageUrl = `/uploads/ebooks/${svgFileName}`;
+        const buffer = Buffer.from(validation.svg, 'utf8');
+        coverImageUrl = await uploadToCloudinary(buffer, 'ebooks/covers', `${Date.now()}-cover.svg`);
       } else {
-        return res.status(400).json({ 
-          success: false, 
-          message: validation ? validation.error : 'Invalid SVG code' 
+        return res.status(400).json({
+          success: false,
+          message: validation ? validation.error : 'Invalid SVG code'
         });
       }
     } else if (image_url_data && image_url_data.startsWith('data:image')) {
-      coverImageUrl = image_url_data;
+      // Convert base64 to buffer
+      const base64Data = image_url_data.split(',')[1];
+      const buffer = Buffer.from(base64Data, 'base64');
+      coverImageUrl = await uploadToCloudinary(buffer, 'ebooks/covers', `${Date.now()}-cover`);
     }
-    
+
     let finalContent = content || null;
-    
     if (finalIsHtmlMode && !finalContent && file) {
-      const filePath = path.join(__dirname, '../../uploads/ebooks/', file.filename);
-      if (fs.existsSync(filePath)) {
-        finalContent = fs.readFileSync(filePath, 'utf8');
-      }
+      finalContent = file.buffer.toString('utf8');
     }
-    
-    const fileUrl = `/uploads/ebooks/${file.filename}`;
-    
+
     const [result] = await pool.query(`
       INSERT INTO ebooks (
         title, description, content, file_url, file_type, is_html_mode, cover_image_url, created_at, updated_at
@@ -260,11 +250,11 @@ router.post('/', verifyAdminToken, upload.fields([
       finalIsHtmlMode ? 1 : 0,
       coverImageUrl
     ]);
-    
+
     res.status(201).json({
       success: true,
       message: 'Ebook created successfully',
-      data: { id: result.insertId }
+      data: { id: result.insertId, fileUrl, coverImageUrl }
     });
   } catch (err) {
     console.error('Error creating ebook:', err);
@@ -272,7 +262,7 @@ router.post('/', verifyAdminToken, upload.fields([
   }
 });
 
-// Update ebook (admin)
+// UPDATE ebook – handle Cloudinary file replacement
 router.put('/:id', verifyAdminToken, upload.fields([
   { name: 'file', maxCount: 1 },
   { name: 'cover', maxCount: 1 }
@@ -280,15 +270,15 @@ router.put('/:id', verifyAdminToken, upload.fields([
   try {
     const { id } = req.params;
     const { title, description, content, file_type, is_html_mode, image_url_data, image_code } = req.body;
-    
+
     const [existing] = await pool.query('SELECT * FROM ebooks WHERE id = ?', [id]);
     if (existing.length === 0) {
       return res.status(404).json({ success: false, message: 'Ebook not found' });
     }
-    
+
     let updates = [];
     let values = [];
-    
+
     if (title) {
       updates.push('title = ?');
       values.push(title);
@@ -297,77 +287,79 @@ router.put('/:id', verifyAdminToken, upload.fields([
       updates.push('description = ?');
       values.push(description || '');
     }
-    
-    let fileUrl = existing[0].file_url;
+
+    // Handle main file
     if (req.files && req.files.file) {
       const file = req.files.file[0];
-      fileUrl = `/uploads/ebooks/${file.filename}`;
-      updates.push('file_url = ?');
-      values.push(fileUrl);
-      
+      // Delete old file from Cloudinary if exists
       if (existing[0].file_url) {
-        const oldFilePath = path.join(__dirname, '../..', existing[0].file_url);
-        if (fs.existsSync(oldFilePath)) {
-          fs.unlinkSync(oldFilePath);
+        const publicId = getPublicIdFromUrl(existing[0].file_url);
+        if (publicId) {
+          await deleteFromCloudinary(publicId).catch(e => console.warn('Delete old file failed:', e));
         }
       }
+      const newUrl = await uploadToCloudinary(file.buffer, 'ebooks', `${Date.now()}-${file.originalname}`);
+      updates.push('file_url = ?');
+      values.push(newUrl);
     }
-    
-    let coverImageUrl = existing[0].cover_image_url;
-    
+
+    // Handle cover
     if (req.files && req.files.cover) {
-      const coverFile = req.files.cover[0];
-      coverImageUrl = `/uploads/ebooks/${coverFile.filename}`;
-      updates.push('cover_image_url = ?');
-      values.push(coverImageUrl);
-      
-      if (existing[0].cover_image_url && !existing[0].cover_image_url.startsWith('data:')) {
-        const oldCoverPath = path.join(__dirname, '../..', existing[0].cover_image_url);
-        if (fs.existsSync(oldCoverPath)) {
-          fs.unlinkSync(oldCoverPath);
+      const cover = req.files.cover[0];
+      if (existing[0].cover_image_url) {
+        const publicId = getPublicIdFromUrl(existing[0].cover_image_url);
+        if (publicId) {
+          await deleteFromCloudinary(publicId).catch(e => console.warn('Delete old cover failed:', e));
         }
       }
+      const newCoverUrl = await uploadToCloudinary(cover.buffer, 'ebooks/covers', `${Date.now()}-cover-${cover.originalname}`);
+      updates.push('cover_image_url = ?');
+      values.push(newCoverUrl);
     } else if (image_code && image_code.trim()) {
       const validation = validateAndCleanSvg(image_code);
       if (validation && validation.valid) {
-        const cleanSvg = validation.svg;
-        if (existing[0].cover_image_url && !existing[0].cover_image_url.startsWith('data:')) {
-          const oldCoverPath = path.join(__dirname, '../..', existing[0].cover_image_url);
-          if (fs.existsSync(oldCoverPath)) {
-            fs.unlinkSync(oldCoverPath);
+        if (existing[0].cover_image_url) {
+          const publicId = getPublicIdFromUrl(existing[0].cover_image_url);
+          if (publicId) {
+            await deleteFromCloudinary(publicId).catch(e => console.warn('Delete old cover failed:', e));
           }
         }
-        const svgFileName = `cover-${Date.now()}.svg`;
-        const svgPath = path.join(__dirname, '../../uploads/ebooks/', svgFileName);
-        fs.writeFileSync(svgPath, cleanSvg, 'utf8');
-        coverImageUrl = `/uploads/ebooks/${svgFileName}`;
+        const buffer = Buffer.from(validation.svg, 'utf8');
+        const newCoverUrl = await uploadToCloudinary(buffer, 'ebooks/covers', `${Date.now()}-cover.svg`);
         updates.push('cover_image_url = ?');
-        values.push(coverImageUrl);
+        values.push(newCoverUrl);
       } else {
-        return res.status(400).json({ 
-          success: false, 
-          message: validation ? validation.error : 'Invalid SVG code' 
+        return res.status(400).json({
+          success: false,
+          message: validation ? validation.error : 'Invalid SVG code'
         });
       }
     } else if (image_url_data && image_url_data.startsWith('data:image')) {
-      coverImageUrl = image_url_data;
+      if (existing[0].cover_image_url) {
+        const publicId = getPublicIdFromUrl(existing[0].cover_image_url);
+        if (publicId) {
+          await deleteFromCloudinary(publicId).catch(e => console.warn('Delete old cover failed:', e));
+        }
+      }
+      const base64Data = image_url_data.split(',')[1];
+      const buffer = Buffer.from(base64Data, 'base64');
+      const newCoverUrl = await uploadToCloudinary(buffer, 'ebooks/covers', `${Date.now()}-cover`);
       updates.push('cover_image_url = ?');
-      values.push(coverImageUrl);
+      values.push(newCoverUrl);
     }
-    
+
+    // Handle content and type
     let finalContent = content || existing[0].content;
     let finalIsHtmlMode = is_html_mode === 'true' || is_html_mode === true || existing[0].is_html_mode;
-    
     if (content !== undefined) {
       finalContent = content;
       updates.push('content = ?');
       values.push(finalContent);
-      
       if (content && (content.includes('<!DOCTYPE') || content.includes('<html'))) {
         finalIsHtmlMode = true;
       }
     }
-    
+
     let finalFileType = file_type || existing[0].file_type;
     if (file_type) {
       updates.push('file_type = ?');
@@ -377,58 +369,51 @@ router.put('/:id', verifyAdminToken, upload.fields([
       values.push('html');
       finalFileType = 'html';
     }
-    
+
     if (finalIsHtmlMode !== existing[0].is_html_mode) {
       updates.push('is_html_mode = ?');
       values.push(finalIsHtmlMode ? 1 : 0);
     }
-    
+
     if (updates.length === 0) {
       return res.status(400).json({ success: false, message: 'No fields to update' });
     }
-    
+
     updates.push('updated_at = NOW()');
     values.push(id);
-    
     const query = `UPDATE ebooks SET ${updates.join(', ')} WHERE id = ?`;
     await pool.query(query, values);
-    
-    res.json({
-      success: true,
-      message: 'Ebook updated successfully'
-    });
+
+    res.json({ success: true, message: 'Ebook updated successfully' });
   } catch (err) {
     console.error('Error updating ebook:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// Delete ebook (admin)
+// DELETE ebook – remove from Cloudinary too
 router.delete('/:id', verifyAdminToken, async (req, res) => {
   try {
     const { id } = req.params;
-    
     const [rows] = await pool.query('SELECT file_url, cover_image_url FROM ebooks WHERE id = ?', [id]);
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Ebook not found' });
     }
-    
+
     if (rows[0].file_url) {
-      const filePath = path.join(__dirname, '../..', rows[0].file_url);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+      const publicId = getPublicIdFromUrl(rows[0].file_url);
+      if (publicId) {
+        await deleteFromCloudinary(publicId).catch(e => console.warn('Delete file failed:', e));
       }
     }
-    
-    if (rows[0].cover_image_url && !rows[0].cover_image_url.startsWith('data:')) {
-      const coverPath = path.join(__dirname, '../..', rows[0].cover_image_url);
-      if (fs.existsSync(coverPath)) {
-        fs.unlinkSync(coverPath);
+    if (rows[0].cover_image_url) {
+      const publicId = getPublicIdFromUrl(rows[0].cover_image_url);
+      if (publicId) {
+        await deleteFromCloudinary(publicId).catch(e => console.warn('Delete cover failed:', e));
       }
     }
-    
+
     await pool.query('DELETE FROM ebooks WHERE id = ?', [id]);
-    
     res.json({ success: true, message: 'Ebook deleted successfully' });
   } catch (err) {
     console.error('Error deleting ebook:', err);
@@ -436,33 +421,25 @@ router.delete('/:id', verifyAdminToken, async (req, res) => {
   }
 });
 
-// ✅ FIXED: Download ebook (user) – uses content for HTML ebooks, file for PDF
+// DOWNLOAD ebook – redirect to Cloudinary URL for PDF, or serve HTML content
 router.get('/download/:id', verifyUserToken, async (req, res) => {
   try {
     const { id } = req.params;
     const [rows] = await pool.query('SELECT file_url, title, file_type, content FROM ebooks WHERE id = ?', [id]);
-    
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Ebook not found' });
     }
-    
     const ebook = rows[0];
-    
-    // For HTML ebooks, serve content directly
     if (ebook.file_type === 'html' && ebook.content) {
       res.setHeader('Content-Type', 'text/html');
       res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(ebook.title)}.html"`);
       return res.send(ebook.content);
     }
-    
-    // For PDF, serve file
-    const filePath = path.join(__dirname, '../..', ebook.file_url);
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ success: false, message: 'File not found' });
+    if (ebook.file_url) {
+      // Redirect to Cloudinary URL
+      return res.redirect(ebook.file_url);
     }
-    
-    const ext = path.extname(ebook.file_url);
-    res.download(filePath, `${ebook.title}${ext}`);
+    res.status(404).json({ success: false, message: 'File not found' });
   } catch (err) {
     console.error('Error downloading ebook:', err);
     res.status(500).json({ success: false, message: err.message });

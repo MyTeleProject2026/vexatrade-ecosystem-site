@@ -1,25 +1,14 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const pool = require('../db');
 const { verifyAdminToken, verifyUserToken } = require('../middleware/auth');
+const cloudinary = require('../utils/cloudinary');
+const streamifier = require('streamifier');
 const router = express.Router();
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../uploads/posts');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const unique = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, unique + path.extname(file.originalname));
-  }
-});
+// Use memory storage (no local files)
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
@@ -36,20 +25,48 @@ const upload = multer({
   fileFilter: fileFilter
 });
 
-// ✅ Same SVG validation as ebook.js
+// Helpers (same as ebook.js)
+const uploadToCloudinary = (buffer, folder, publicId = null) => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: `vexatrade_ecosystem/${folder}`,
+        resource_type: 'auto',
+        public_id: publicId || undefined,
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result.secure_url);
+      }
+    );
+    streamifier.createReadStream(buffer).pipe(uploadStream);
+  });
+};
+
+const deleteFromCloudinary = (publicId) => {
+  return cloudinary.uploader.destroy(publicId);
+};
+
+const getPublicIdFromUrl = (url) => {
+  if (!url) return null;
+  const parts = url.split('/');
+  const uploadIndex = parts.indexOf('upload');
+  if (uploadIndex === -1) return null;
+  const pathSegments = parts.slice(uploadIndex + 2);
+  return pathSegments.join('/').split('.')[0];
+};
+
+// SVG validation (same)
 const validateAndCleanSvg = (svgCode) => {
   if (!svgCode || typeof svgCode !== 'string') return null;
   const trimmed = svgCode.trim();
   if (!trimmed) return null;
-  
   if (trimmed.includes('<!DOCTYPE') || trimmed.includes('<html') || trimmed.includes('<head')) {
     return { valid: false, error: 'HTML detected – use SVG only for images' };
   }
-  
   if (!trimmed.includes('<svg') || !trimmed.includes('</svg>')) {
     return { valid: false, error: 'Invalid SVG: missing <svg> or </svg>' };
   }
-  
   let cleanSvg = trimmed;
   if (!cleanSvg.includes('xmlns')) {
     cleanSvg = cleanSvg.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
@@ -60,27 +77,21 @@ const validateAndCleanSvg = (svgCode) => {
   return { valid: true, svg: cleanSvg };
 };
 
-// Get all posts (user)
+// GET all posts (user)
 router.get('/', verifyUserToken, async (req, res) => {
   try {
     const [rows] = await pool.query(
       'SELECT id, title, description, image_url, content, is_html_mode, created_at FROM posts ORDER BY created_at DESC'
     );
-    
-    const baseUrl = process.env.BASE_URL || 'https://vexatrade-ecosystem-api.onrender.com';
-    const posts = rows.map(post => ({
-      ...post,
-      image_url: post.image_url ? (post.image_url.startsWith('data:') ? post.image_url : `${baseUrl}${post.image_url}`) : null
-    }));
-    
-    res.json({ success: true, data: posts });
+    // Cloudinary URLs are absolute; no need to modify
+    res.json({ success: true, data: rows });
   } catch (err) {
     console.error('Error fetching posts:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// Get single post (user + admin)
+// GET single post
 router.get('/:id', verifyUserToken, async (req, res) => {
   const { id } = req.params;
   try {
@@ -88,41 +99,32 @@ router.get('/:id', verifyUserToken, async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Post not found' });
     }
-    
-    const baseUrl = process.env.BASE_URL || 'https://vexatrade-ecosystem-api.onrender.com';
-    const post = {
-      ...rows[0],
-      image_url: rows[0].image_url ? (rows[0].image_url.startsWith('data:') ? rows[0].image_url : `${baseUrl}${rows[0].image_url}`) : null
-    };
-    
-    res.json({ success: true, data: post });
+    res.json({ success: true, data: rows[0] });
   } catch (err) {
     console.error('Error fetching post:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// Create post (admin) - FIXED SVG handling
+// CREATE post – upload image to Cloudinary
 router.post('/', verifyAdminToken, upload.single('image'), async (req, res) => {
   const { title, description, content, is_html_mode, image_url_data, image_code } = req.body;
-  
+
   if (!title) {
     return res.status(400).json({ success: false, message: 'Title is required' });
   }
-  
+
   try {
     let image_url = null;
-    
+
+    // If file uploaded via multer
     if (req.file) {
-      image_url = `/uploads/posts/${req.file.filename}`;
+      image_url = await uploadToCloudinary(req.file.buffer, 'posts', `${Date.now()}-${req.file.originalname}`);
     } else if (image_code && image_code.trim()) {
       const validation = validateAndCleanSvg(image_code);
       if (validation && validation.valid) {
-        const cleanSvg = validation.svg;
-        const svgFileName = `post-${Date.now()}.svg`;
-        const svgPath = path.join(__dirname, '../../uploads/posts/', svgFileName);
-        fs.writeFileSync(svgPath, cleanSvg, 'utf8');
-        image_url = `/uploads/posts/${svgFileName}`;
+        const buffer = Buffer.from(validation.svg, 'utf8');
+        image_url = await uploadToCloudinary(buffer, 'posts', `${Date.now()}-image.svg`);
       } else {
         return res.status(400).json({
           success: false,
@@ -130,16 +132,18 @@ router.post('/', verifyAdminToken, upload.single('image'), async (req, res) => {
         });
       }
     } else if (image_url_data && image_url_data.startsWith('data:image')) {
-      image_url = image_url_data;
+      const base64Data = image_url_data.split(',')[1];
+      const buffer = Buffer.from(base64Data, 'base64');
+      image_url = await uploadToCloudinary(buffer, 'posts', `${Date.now()}-image`);
     }
-    
+
     const isHtmlMode = is_html_mode === 'true' || is_html_mode === true;
-    
+
     const [result] = await pool.query(
       'INSERT INTO posts (title, description, content, image_url, is_html_mode, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
       [title, description || '', content || '', image_url, isHtmlMode]
     );
-    
+
     res.json({
       success: true,
       id: result.insertId,
@@ -151,41 +155,60 @@ router.post('/', verifyAdminToken, upload.single('image'), async (req, res) => {
   }
 });
 
-// Update post (admin) - FIXED SVG handling
+// UPDATE post – handle image replacement
 router.put('/:id', verifyAdminToken, upload.single('image'), async (req, res) => {
   const { id } = req.params;
   const { title, description, content, existing_image_url, is_html_mode, image_url_data, image_code } = req.body;
-  
+
   try {
     const [existing] = await pool.query('SELECT * FROM posts WHERE id = ?', [id]);
     if (existing.length === 0) {
       return res.status(404).json({ success: false, message: 'Post not found' });
     }
-    
-    let image_url = existing_image_url || existing[0].image_url;
-    
+
+    let updates = [];
+    let values = [];
+
+    if (title) {
+      updates.push('title = ?');
+      values.push(title);
+    }
+    if (description !== undefined) {
+      updates.push('description = ?');
+      values.push(description || '');
+    }
+    if (content !== undefined) {
+      updates.push('content = ?');
+      values.push(content);
+    }
+
+    // Handle image update
+    let image_url = existing[0].image_url;
+
     if (req.file) {
-      if (existing[0].image_url && !existing[0].image_url.startsWith('data:') && !existing[0].image_url.includes('data:')) {
-        const oldImagePath = path.join(__dirname, '../..', existing[0].image_url);
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
+      // Delete old image from Cloudinary if exists
+      if (existing[0].image_url) {
+        const publicId = getPublicIdFromUrl(existing[0].image_url);
+        if (publicId) {
+          await deleteFromCloudinary(publicId).catch(e => console.warn('Delete old image failed:', e));
         }
       }
-      image_url = `/uploads/posts/${req.file.filename}`;
+      image_url = await uploadToCloudinary(req.file.buffer, 'posts', `${Date.now()}-${req.file.originalname}`);
+      updates.push('image_url = ?');
+      values.push(image_url);
     } else if (image_code && image_code.trim()) {
       const validation = validateAndCleanSvg(image_code);
       if (validation && validation.valid) {
-        const cleanSvg = validation.svg;
-        if (existing[0].image_url && !existing[0].image_url.startsWith('data:') && !existing[0].image_url.includes('data:')) {
-          const oldImagePath = path.join(__dirname, '../..', existing[0].image_url);
-          if (fs.existsSync(oldImagePath)) {
-            fs.unlinkSync(oldImagePath);
+        if (existing[0].image_url) {
+          const publicId = getPublicIdFromUrl(existing[0].image_url);
+          if (publicId) {
+            await deleteFromCloudinary(publicId).catch(e => console.warn('Delete old image failed:', e));
           }
         }
-        const svgFileName = `post-${Date.now()}.svg`;
-        const svgPath = path.join(__dirname, '../../uploads/posts/', svgFileName);
-        fs.writeFileSync(svgPath, cleanSvg, 'utf8');
-        image_url = `/uploads/posts/${svgFileName}`;
+        const buffer = Buffer.from(validation.svg, 'utf8');
+        image_url = await uploadToCloudinary(buffer, 'posts', `${Date.now()}-image.svg`);
+        updates.push('image_url = ?');
+        values.push(image_url);
       } else {
         return res.status(400).json({
           success: false,
@@ -193,22 +216,34 @@ router.put('/:id', verifyAdminToken, upload.single('image'), async (req, res) =>
         });
       }
     } else if (image_url_data && image_url_data.startsWith('data:image')) {
-      image_url = image_url_data;
+      if (existing[0].image_url) {
+        const publicId = getPublicIdFromUrl(existing[0].image_url);
+        if (publicId) {
+          await deleteFromCloudinary(publicId).catch(e => console.warn('Delete old image failed:', e));
+        }
+      }
+      const base64Data = image_url_data.split(',')[1];
+      const buffer = Buffer.from(base64Data, 'base64');
+      image_url = await uploadToCloudinary(buffer, 'posts', `${Date.now()}-image`);
+      updates.push('image_url = ?');
+      values.push(image_url);
     }
-    
+
     const isHtmlMode = is_html_mode === 'true' || is_html_mode === true;
-    
-    const [result] = await pool.query(
-      `UPDATE posts 
-       SET title = ?, description = ?, content = ?, image_url = ?, is_html_mode = ?, updated_at = NOW() 
-       WHERE id = ?`,
-      [title, description || '', content || '', image_url, isHtmlMode, id]
-    );
-    
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: 'Post not found' });
+    if (isHtmlMode !== existing[0].is_html_mode) {
+      updates.push('is_html_mode = ?');
+      values.push(isHtmlMode ? 1 : 0);
     }
-    
+
+    if (updates.length === 0) {
+      return res.status(400).json({ success: false, message: 'No fields to update' });
+    }
+
+    updates.push('updated_at = NOW()');
+    values.push(id);
+    const query = `UPDATE posts SET ${updates.join(', ')} WHERE id = ?`;
+    await pool.query(query, values);
+
     res.json({
       success: true,
       message: 'Post updated successfully'
@@ -219,28 +254,24 @@ router.put('/:id', verifyAdminToken, upload.single('image'), async (req, res) =>
   }
 });
 
-// Delete post (admin)
+// DELETE post – remove image from Cloudinary
 router.delete('/:id', verifyAdminToken, async (req, res) => {
   const { id } = req.params;
-  
+
   try {
     const [rows] = await pool.query('SELECT image_url FROM posts WHERE id = ?', [id]);
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Post not found' });
     }
-    
-    if (rows[0].image_url && !rows[0].image_url.startsWith('data:') && !rows[0].image_url.includes('data:')) {
-      const imagePath = path.join(__dirname, '../..', rows[0].image_url);
-      if (fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
+
+    if (rows[0].image_url) {
+      const publicId = getPublicIdFromUrl(rows[0].image_url);
+      if (publicId) {
+        await deleteFromCloudinary(publicId).catch(e => console.warn('Delete image failed:', e));
       }
     }
-    
-    const [result] = await pool.query('DELETE FROM posts WHERE id = ?', [id]);
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: 'Post not found' });
-    }
-    
+
+    await pool.query('DELETE FROM posts WHERE id = ?', [id]);
     res.json({ success: true, message: 'Post deleted successfully' });
   } catch (err) {
     console.error('Error deleting post:', err);
