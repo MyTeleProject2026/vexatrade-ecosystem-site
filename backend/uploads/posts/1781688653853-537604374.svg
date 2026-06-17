@@ -1,0 +1,179 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <!-- Cyan Gradient for VexaTrade Brand -->
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00d4ff" />
+      <stop offset="100%" stop-color="#38bdf8" />
+    </linearGradient>
+    
+    <!-- Dark Background Gradient -->
+    <linearGradient id="darkBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b0f1c" />
+      <stop offset="100%" stop-color="#0f1422" />
+    </linearGradient>
+    
+    <!-- Green Gradient for Profit/Up Trend -->
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00ff88" />
+      <stop offset="100%" stop-color="#00cc66" />
+    </linearGradient>
+    
+    <!-- Red Gradient for Loss/Down Trend -->
+    <linearGradient id="redGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ff4466" />
+      <stop offset="100%" stop-color="#cc0033" />
+    </linearGradient>
+    
+    <!-- Glow Effect -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    
+    <!-- Strong Glow -->
+    <filter id="glowStrong">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    
+    <!-- Shadow Effect -->
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#00d4ff" flood-opacity="0.25" />
+    </filter>
+    
+    <!-- Text Shadow -->
+    <filter id="textShadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.5" />
+    </filter>
+    
+    <!-- Chart Area Gradient -->
+    <linearGradient id="chartArea" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00d4ff" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#00d4ff" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+
+  <!-- Dark Background -->
+  <rect width="800" height="400" fill="url(#darkBg)" rx="16" />
+  
+  <!-- Outer Glowing Border -->
+  <rect x="6" y="6" width="788" height="388" rx="12" fill="none" stroke="#00d4ff" stroke-width="1.5" opacity="0.4" />
+  
+  <!-- Decorative Background Elements -->
+  <circle cx="750" cy="30" r="200" fill="#00d4ff" opacity="0.02" />
+  <circle cx="50" cy="380" r="150" fill="#38bdf8" opacity="0.02" />
+  
+  <!-- Grid Lines (Trading Chart Background) -->
+  <line x1="60" y1="100" x2="380" y2="100" stroke="#1a2236" stroke-width="0.5" opacity="0.5" />
+  <line x1="60" y1="150" x2="380" y2="150" stroke="#1a2236" stroke-width="0.5" opacity="0.5" />
+  <line x1="60" y1="200" x2="380" y2="200" stroke="#1a2236" stroke-width="0.5" opacity="0.5" />
+  <line x1="60" y1="250" x2="380" y2="250" stroke="#1a2236" stroke-width="0.5" opacity="0.5" />
+  <line x1="60" y1="300" x2="380" y2="300" stroke="#1a2236" stroke-width="0.5" opacity="0.5" />
+  
+  <!-- Vertical Grid Lines -->
+  <line x1="115" y1="100" x2="115" y2="340" stroke="#1a2236" stroke-width="0.5" opacity="0.3" />
+  <line x1="170" y1="100" x2="170" y2="340" stroke="#1a2236" stroke-width="0.5" opacity="0.3" />
+  <line x1="225" y1="100" x2="225" y2="340" stroke="#1a2236" stroke-width="0.5" opacity="0.3" />
+  <line x1="280" y1="100" x2="280" y2="340" stroke="#1a2236" stroke-width="0.5" opacity="0.3" />
+  <line x1="335" y1="100" x2="335" y2="340" stroke="#1a2236" stroke-width="0.5" opacity="0.3" />
+
+  <!-- === CHART AREA FILL (Under the line) === -->
+  <polygon points="60,280 115,240 170,260 225,180 280,210 335,150 380,120 380,340 60,340" 
+           fill="url(#chartArea)" opacity="0.8" />
+
+  <!-- === MAIN CHART LINE (Candlestick/Wave Pattern) === -->
+  <polyline points="60,280 115,240 170,260 225,180 280,210 335,150 380,120" 
+            fill="none" stroke="url(#cyanGrad)" stroke-width="3" filter="url(#glow)" stroke-linejoin="round" />
+
+  <!-- === CANDLESTICK INDICATORS === -->
+  <!-- Candle 1 (Down) -->
+  <rect x="85" y="245" width="12" height="30" rx="1" fill="url(#redGrad)" />
+  <line x1="91" y1="235" x2="91" y2="280" stroke="#ff4466" stroke-width="1.5" />
+  
+  <!-- Candle 2 (Up) -->
+  <rect x="140" y="230" width="12" height="35" rx="1" fill="url(#greenGrad)" />
+  <line x1="146" y1="220" x2="146" y2="265" stroke="#00ff88" stroke-width="1.5" />
+  
+  <!-- Candle 3 (Up) -->
+  <rect x="195" y="165" width="12" height="40" rx="1" fill="url(#greenGrad)" />
+  <line x1="201" y1="155" x2="201" y2="205" stroke="#00ff88" stroke-width="1.5" />
+  
+  <!-- Candle 4 (Down) -->
+  <rect x="250" y="190" width="12" height="45" rx="1" fill="url(#redGrad)" />
+  <line x1="256" y1="180" x2="256" y2="235" stroke="#ff4466" stroke-width="1.5" />
+  
+  <!-- Candle 5 (Up) -->
+  <rect x="305" y="135" width="12" height="40" rx="1" fill="url(#greenGrad)" />
+  <line x1="311" y1="125" x2="311" y2="175" stroke="#00ff88" stroke-width="1.5" />
+  
+  <!-- Candle 6 (Up - Strong) -->
+  <rect x="355" y="95" width="12" height="55" rx="1" fill="url(#greenGrad)" filter="url(#glow)" />
+  <line x1="361" y1="85" x2="361" y2="150" stroke="#00ff88" stroke-width="2" />
+
+  <!-- === TRADING INDICATORS === -->
+  <!-- Up Arrow (Profit) -->
+  <polygon points="400,100 412,85 424,100 418,100 418,115 406,115 406,100" fill="#00ff88" opacity="0.8" />
+  <text x="412" y="135" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" fill="#00ff88" text-anchor="middle">+24%</text>
+  
+  <!-- Down Arrow (Loss) -->
+  <polygon points="310,235 322,250 334,235 328,235 328,220 316,220 316,235" fill="#ff4466" opacity="0.6" />
+  <text x="322" y="270" font-family="'Segoe UI', Arial, sans-serif" font-size="9" font-weight="600" fill="#ff4466" text-anchor="middle" opacity="0.6">-8%</text>
+
+  <!-- Target/Bullseye at the end -->
+  <circle cx="380" cy="120" r="8" fill="none" stroke="#00d4ff" stroke-width="2" filter="url(#glow)" />
+  <circle cx="380" cy="120" r="4" fill="#00d4ff" filter="url(#glow)" />
+
+  <!-- === TOP ACCENT BAR === -->
+  <rect x="20" y="20" width="760" height="3" fill="url(#cyanGrad)" filter="url(#glow)" opacity="0.8" />
+
+  <!-- === BADGES === -->
+  <rect x="30" y="35" width="60" height="22" rx="11" fill="none" stroke="#38bdf8" stroke-width="1" />
+  <text x="60" y="50" font-family="'Segoe UI', Arial, sans-serif" font-size="9" font-weight="700" fill="#38bdf8" text-anchor="middle" letter-spacing="1.5">POST</text>
+
+  <rect x="100" y="35" width="110" height="22" rx="11" fill="#00d4ff" opacity="0.15" />
+  <text x="155" y="50" font-family="'Segoe UI', Arial, sans-serif" font-size="9" font-weight="600" fill="#b0bedb" text-anchor="middle" letter-spacing="1">TRADING GUIDE</text>
+
+  <!-- === RIGHT SIDE: TEXT CONTENT === -->
+  <text x="420" y="80" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="600" fill="#b0bedb" letter-spacing="2">VEXATRADE ECOSYSTEM</text>
+  
+  <text x="420" y="125" font-family="'Segoe UI', Arial, sans-serif" font-size="28" font-weight="900" fill="#ffffff" letter-spacing="1" filter="url(#textShadow)">
+    Binary Options
+  </text>
+  <text x="420" y="165" font-family="'Segoe UI', Arial, sans-serif" font-size="26" font-weight="700" fill="url(#cyanGrad)" letter-spacing="0.5" filter="url(#textShadow)">
+    Trading &amp; Winning
+  </text>
+  
+  <rect x="420" y="185" width="180" height="2.5" fill="url(#cyanGrad)" filter="url(#glow)" />
+  
+  <text x="420" y="215" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="300" fill="#b0bedb">
+    Master the art of binary options
+  </text>
+  <text x="420" y="238" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="300" fill="#b0bedb">
+    with proven strategies &amp; win daily.
+  </text>
+  
+  <!-- Strategy Tags -->
+  <g transform="translate(420, 265)">
+    <rect x="0" y="0" width="80" height="24" rx="12" fill="none" stroke="#00d4ff" stroke-width="1.2" opacity="0.6" />
+    <text x="40" y="16" font-family="'Segoe UI', Arial, sans-serif" font-size="10" font-weight="600" fill="#38bdf8" text-anchor="middle">📈 Trends</text>
+    
+    <rect x="90" y="0" width="90" height="24" rx="12" fill="none" stroke="#00d4ff" stroke-width="1.2" opacity="0.6" />
+    <text x="135" y="16" font-family="'Segoe UI', Arial, sans-serif" font-size="10" font-weight="600" fill="#38bdf8" text-anchor="middle">⚡ Momentum</text>
+    
+    <rect x="190" y="0" width="80" height="24" rx="12" fill="none" stroke="#00d4ff" stroke-width="1.2" opacity="0.6" />
+    <text x="230" y="16" font-family="'Segoe UI', Arial, sans-serif" font-size="10" font-weight="600" fill="#38bdf8" text-anchor="middle">🎯 Reversal</text>
+  </g>
+  
+  <!-- Read More Button -->
+  <rect x="420" y="315" width="160" height="38" rx="19" fill="none" stroke="#00d4ff" stroke-width="2" filter="url(#shadow)" />
+  <text x="500" y="340" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#38bdf8" text-anchor="middle" letter-spacing="1.5">READ MORE →</text>
+
+  <!-- Bottom Accent Bar -->
+  <rect x="20" y="378" width="760" height="3" fill="url(#cyanGrad)" filter="url(#glow)" opacity="0.3" />
+</svg>
