@@ -1,118 +1,66 @@
-import axios from 'axios';
+import { useState } from 'react';
+import { adminLogin } from '../api';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://vexatrade-ecosystem-api.onrender.com';
+export default function Login({ onLogin }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-const api = axios.create({
-  baseURL: `${API_BASE_URL}/api`,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
-// ✅ Add debug logging for admin token
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('adminToken');
-  
-  console.log('🔑 Admin Token in localStorage:', token ? '✅ Present' : '❌ Missing');
-  console.log('📡 Admin Request:', config.method.toUpperCase(), config.url);
-  
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-    console.log('✅ Admin token added to request headers');
-  } else {
-    console.warn('⚠️ No admin token found for request:', config.url);
-  }
-  
-  return config;
-});
-
-api.interceptors.response.use(
-  (response) => {
-    console.log('✅ Admin Response success:', response.config.url);
-    return response;
-  },
-  (error) => {
-    console.error('❌ Admin API Error:', error.response?.status, error.response?.data);
-    if (error.response?.status === 401) {
-      console.warn('⚠️ Admin unauthorized - clearing token');
-      localStorage.removeItem('adminToken');
-      window.location.href = '/login';
+    try {
+      const res = await adminLogin(email, password);
+      if (res.data.success && res.data.token) {
+        localStorage.setItem('adminToken', res.data.token);
+        onLogin();
+      } else {
+        setError('Login failed: No token received');
+      }
+    } catch (err) {
+      console.error('Admin login error:', err);
+      setError(err.response?.data?.message || 'Invalid credentials');
+    } finally {
+      setLoading(false);
     }
-    return Promise.reject(error);
-  }
-);
+  };
 
-// ============ ADMIN AUTH ============
-export const adminLogin = (email, password) => {
-  console.log('🔐 Admin login attempt for:', email);
-  return api.post('/admin/login', { email, password });
-};
-
-export const verifyAdmin = () => {
-  return api.get('/admin/verify');
-};
-
-// ============ POSTS ============
-export const getPosts = () => {
-  return api.get('/posts');
-};
-
-export const getPost = (id) => {
-  return api.get(`/posts/${id}`);
-};
-
-export const createPost = (formData) => {
-  return api.post('/posts', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  });
-};
-
-export const updatePost = (id, formData) => {
-  return api.put(`/posts/${id}`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  });
-};
-
-export const deletePost = (id) => {
-  return api.delete(`/posts/${id}`);
-};
-
-// ============ EBOOKS ============
-export const getEbooks = () => {
-  return api.get('/ebooks');
-};
-
-export const getEbook = (id) => {
-  return api.get(`/ebooks/${id}`);
-};
-
-export const createEbook = (formData) => {
-  return api.post('/ebooks', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  });
-};
-
-export const updateEbook = (id, formData) => {
-  return api.put(`/ebooks/${id}`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  });
-};
-
-export const deleteEbook = (id) => {
-  return api.delete(`/ebooks/${id}`);
-};
-
-// ✅ FIXED: View ebook with admin token (properly formatted)
-export const viewEbookAsAdmin = (id) => {
-  const token = localStorage.getItem('adminToken');
-  
-  if (!token) {
-    alert('Please login as admin first');
-    return;
-  }
-  
-  const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://vexatrade-ecosystem-api.onrender.com';
-  window.open(`${apiUrl}/api/ebooks/view/${id}?token=${encodeURIComponent(token)}`, '_blank');
-};
-
-export default api;
+  return (
+    <div className="min-h-screen bg-[#0b0f1c] flex items-center justify-center p-4">
+      <div className="bg-[#0f1422] p-8 rounded-2xl border border-[#2a3440] max-w-md w-full">
+        <h1 className="text-2xl font-bold text-white mb-2 text-center">Admin Login</h1>
+        <p className="text-[#b0bedb] text-sm text-center mb-6">Enter your credentials to access the control panel</p>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="email"
+            placeholder="Admin Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full bg-[#131724] border border-[#2a3440] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#00d4ff]"
+            required
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full bg-[#131724] border border-[#2a3440] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#00d4ff]"
+            required
+          />
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#00d4ff] text-black font-semibold py-3 rounded-full hover:bg-[#00b8e6] disabled:opacity-50 transition"
+          >
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
